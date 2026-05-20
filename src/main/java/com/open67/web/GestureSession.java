@@ -5,22 +5,21 @@ import com.open67.vision.GestureDetectionResult;
 import org.opencv.core.Mat;
 import org.opencv.core.Rect;
 
-import java.time.Duration;
-
 final class GestureSession {
 
     private static final long COUNT_DEBOUNCE_MS = 250L;
-    private static final int REQUIRED_CONSECUTIVE = 2;
     private static final int COUNTDOWN_SECONDS = 3;
 
     private enum State {
-        IDLE, COUNTDOWN, ACTIVE, TIMING, COMPLETE
+        IDLE, COUNTDOWN, ACTIVE, COMPLETE
     }
 
     private int targetCount = 3;
     private int timerSeconds = 10;
     private int gestureCount;
+    private int detectionHits;
     private int detectionStreak;
+    private boolean previousDetectedSignal;
     private long lastCountedAtMs;
     private State state = State.IDLE;
     private long countdownEndAtMs = -1L;
@@ -42,6 +41,9 @@ final class GestureSession {
 
     synchronized void reset() {
         gestureCount = 0;
+        detectionHits = 0;
+        detectionStreak = 0;
+        previousDetectedSignal = false;
         lastCountedAtMs = 0L;
         timerEndAtMs = -1L;
         countdownEndAtMs = -1L;
@@ -54,8 +56,9 @@ final class GestureSession {
             long now = System.currentTimeMillis();
             countdownEndAtMs = now + COUNTDOWN_SECONDS * 1000L;
             state = State.COUNTDOWN;
-            gestureCount = 0;
             detectionStreak = 0;
+            previousDetectedSignal = false;
+            timerEndAtMs = -1L;
             lastMessage = "Countdown";
         }
     }
@@ -83,10 +86,12 @@ final class GestureSession {
         if (state == State.COUNTDOWN) {
             if (now >= countdownEndAtMs) {
                 state = State.ACTIVE;
+                timerEndAtMs = now + timerSeconds * 1000L;
+                previousDetectedSignal = false;
                 lastMessage = "Go";
             } else {
                 lastMessage = "Countdown";
-                return buildResult(detected, null, strength, confidence, area, message, now);
+                return buildResult(false, null, strength, confidence, area, "Countdown", now);
             }
         }
 
@@ -96,28 +101,28 @@ final class GestureSession {
             detectionStreak = 0;
         }
 
-        // Only count when active, we have enough consecutive positive frames and debounce time passed
-        if (state == State.ACTIVE && detectionStreak >= REQUIRED_CONSECUTIVE && now - lastCountedAtMs >= COUNT_DEBOUNCE_MS) {
+        // Count on a clean rising edge from the client gesture signal.
+        boolean risingEdge = detected && !previousDetectedSignal;
+        if (state == State.ACTIVE && risingEdge && now - lastCountedAtMs >= COUNT_DEBOUNCE_MS) {
             gestureCount++;
+            detectionHits++;
             lastCountedAtMs = now;
-            detectionStreak = 0; // reset streak to avoid immediate double-counting
-
-            if (gestureCount >= targetCount && timerEndAtMs < 0L) {
-                timerEndAtMs = now + Duration.ofSeconds(timerSeconds).toMillis();
-                state = State.TIMING;
-            }
         }
 
-        // TIMING: check for completion
-        if (state == State.TIMING) {
+        if (state == State.ACTIVE) {
             if (timerRemainingMillis(now) <= 0L) {
                 state = State.COMPLETE;
                 lastMessage = "Timer complete";
             }
         }
 
-        lastMessage = message;
-        return buildResult(detected, null, strength, confidence, area, message, now);
+        previousDetectedSignal = detected;
+
+        if (state == State.ACTIVE) {
+            lastMessage = message;
+        }
+
+        return buildResult(detected, null, strength, confidence, area, lastMessage, now);
     }
 
     synchronized GestureDetectionResultView emptyResult(String message) {
@@ -136,13 +141,13 @@ final class GestureSession {
                 confidence,
                 area,
                 message,
-                detectionStreak,
+                detectionHits,
                 gestureCount,
                 targetCount,
                 timerSeconds,
-                timerEndAtMs > 0L,
+                state == State.ACTIVE && timerEndAtMs > 0L,
                 Math.max(0L, remainingMs),
-                timerEndAtMs > 0L && remainingMs <= 0L,
+                state == State.COMPLETE,
                 state.name(),
                 lastMessage);
     }
