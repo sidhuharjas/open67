@@ -360,7 +360,7 @@ final class WebAssets {
                         <div class="kpi"><div class="label">Confidence</div><div id="confidenceDisplay" class="value">0.00</div></div>
                       </div>
                       <p class="guide">
-                        Gesture67 tracking rule in this build: move either visible hand up and down with confidence above 40%.
+                        Gesture67 tracking rule in this build: move either visible hand up and down with confidence above 32%.
                         Each completed motion cycle emits a rep signal to the Java backend.
                       </p>
                     </aside>
@@ -434,15 +434,15 @@ final class WebAssets {
                     let stableHandCount = 0;
                     let lastHandsSeenAt = 0;
 
-                    const MOTION_AMPLITUDE = 0.022;
-                    const MOTION_DELTA = 0.003;
-                    const MOTION_COOLDOWN_MS = 110;
-                    const REP_CONFIDENCE_THRESHOLD = 0.40;
-                    const REP_COOLDOWN_MS = 280;
-                    const SIGNAL_HOLD_MS = 220;
+                    const MOTION_AMPLITUDE = 0.012;
+                    const MOTION_DELTA = 0.0018;
+                    const MOTION_COOLDOWN_MS = 70;
+                    const REP_CONFIDENCE_THRESHOLD = 0.32;
+                    const REP_COOLDOWN_MS = 95;
+                    const SIGNAL_HOLD_MS = 120;
                     const HAND_VISIBILITY_HOLD_MS = 360;
                     const TRACK_STALE_MS = 280;
-                    const CONFIDENCE_SMOOTHING = 0.45;
+                    const CONFIDENCE_SMOOTHING = 0.35;
 
                     const leftTrack = createMotionTrack();
                     const rightTrack = createMotionTrack();
@@ -621,7 +621,7 @@ final class WebAssets {
                         phase = 'REP';
                       } else {
                         if (anyCycle && !confidenceOk) {
-                          clientMessage = 'Motion seen, confidence below 0.40';
+                          clientMessage = 'Motion seen, confidence below 0.32';
                         } else if (handCount === 1) {
                           clientMessage = 'One hand tracked: keep moving up/down';
                         } else {

@@ -7,7 +7,7 @@ import org.opencv.core.Rect;
 
 final class GestureSession {
 
-    private static final long COUNT_DEBOUNCE_MS = 250L;
+    private static final long COUNT_DEBOUNCE_MS = 80L;
     private static final int COUNTDOWN_SECONDS = 3;
 
     private enum State {
