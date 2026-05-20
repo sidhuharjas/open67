@@ -423,12 +423,20 @@ final class WebAssets {
                     };
                     let running = false;
                     let sessionActive = false;
-                    let lastPose = 'NONE';
-                    let expectedPose = 'NONE';
                     let triggerUntil = 0;
                     let inFlightRequests = 0;
                     let latestSentSequence = 0;
                     let latestAppliedSequence = 0;
+                    let lastLeftCycleAt = 0;
+                    let lastRightCycleAt = 0;
+
+                    const MOTION_AMPLITUDE = 0.04;
+                    const MOTION_DELTA = 0.006;
+                    const MOTION_COOLDOWN_MS = 160;
+                    const PAIR_WINDOW_MS = 2200;
+
+                    const leftTrack = createMotionTrack();
+                    const rightTrack = createMotionTrack();
 
                     function setStatus(message, isError = false) {
                       statusEl.textContent = message;
@@ -442,6 +450,61 @@ final class WebAssets {
                     function maxParallelUploads() {
                       const requested = Number(parallelUploadsInput.value) || 1;
                       return Math.max(1, Math.min(16, requested));
+                    }
+
+                    function createMotionTrack() {
+                      return {
+                        lastY: null,
+                        minY: 1,
+                        maxY: 0,
+                        sawUp: false,
+                        sawDown: false,
+                        cooldownUntil: 0,
+                        lastSeenAt: 0
+                      };
+                    }
+
+                    function resetMotionTrack(track) {
+                      track.lastY = null;
+                      track.minY = 1;
+                      track.maxY = 0;
+                      track.sawUp = false;
+                      track.sawDown = false;
+                      track.cooldownUntil = 0;
+                      track.lastSeenAt = 0;
+                    }
+
+                    function updateMotionTrack(track, y, now) {
+                      track.lastSeenAt = now;
+
+                      if (track.lastY === null) {
+                        track.lastY = y;
+                        track.minY = y;
+                        track.maxY = y;
+                        return false;
+                      }
+
+                      const delta = y - track.lastY;
+                      track.lastY = y;
+
+                      if (y < track.minY) track.minY = y;
+                      if (y > track.maxY) track.maxY = y;
+
+                      if (delta <= -MOTION_DELTA) track.sawUp = true;
+                      if (delta >= MOTION_DELTA) track.sawDown = true;
+
+                      const amplitude = track.maxY - track.minY;
+                      const canFire = now >= track.cooldownUntil;
+                      if (canFire && track.sawUp && track.sawDown && amplitude >= MOTION_AMPLITUDE) {
+                        track.cooldownUntil = now + MOTION_COOLDOWN_MS;
+                        track.sawUp = false;
+                        track.sawDown = false;
+                        track.minY = y;
+                        track.maxY = y;
+                        return true;
+                      }
+
+                      return false;
                     }
 
                     function handSnapshot(landmarks) {
@@ -461,6 +524,7 @@ final class WebAssets {
                     }
 
                     function updateLocalGestureSignal(results) {
+                      const now = Date.now();
                       const snapshots = (results.multiHandLandmarks || [])
                         .map(handSnapshot)
                         .sort((a, b) => a.centerX - b.centerX);
@@ -479,8 +543,13 @@ final class WebAssets {
                       let phase = 'TRACKING';
 
                       if (handCount < 2) {
-                        lastPose = 'NONE';
-                        expectedPose = 'NONE';
+                        if (handCount === 0 || now - leftTrack.lastSeenAt > 450) {
+                          resetMotionTrack(leftTrack);
+                        }
+                        if (handCount === 0 || now - rightTrack.lastSeenAt > 450) {
+                          resetMotionTrack(rightTrack);
+                        }
+
                         latestSignal = {
                           handCount,
                           gestureDetected: Date.now() < triggerUntil,
@@ -494,45 +563,44 @@ final class WebAssets {
                       const leftOnScreen = snapshots[0];
                       const rightOnScreen = snapshots[1];
 
-                      // Positive delta means right hand is physically higher than left in the frame.
-                      const deltaY = leftOnScreen.centerY - rightOnScreen.centerY;
-                      const enterThreshold = 0.045;
-                      const holdThreshold = 0.020;
+                      const leftCycle = updateMotionTrack(leftTrack, leftOnScreen.centerY, now);
+                      const rightCycle = updateMotionTrack(rightTrack, rightOnScreen.centerY, now);
 
-                      let pose = 'LEVEL';
-                      if (deltaY > enterThreshold) {
-                        pose = 'RIGHT_HIGH';
-                      } else if (deltaY < -enterThreshold) {
-                        pose = 'LEFT_HIGH';
-                      } else if (Math.abs(deltaY) <= holdThreshold) {
-                        pose = 'LEVEL';
-                      } else {
-                        pose = lastPose === 'NONE' ? 'LEVEL' : lastPose;
+                      if (leftCycle) {
+                        lastLeftCycleAt = now;
+                      }
+                      if (rightCycle) {
+                        lastRightCycleAt = now;
                       }
 
-                      if (pose === 'LEVEL') {
-                        clientMessage = 'Move one hand higher';
-                      } else {
-                        clientMessage = pose === 'RIGHT_HIGH' ? 'Right hand high' : 'Left hand high';
+                      const bothRecentCycles = lastLeftCycleAt > 0
+                        && lastRightCycleAt > 0
+                        && Math.abs(lastLeftCycleAt - lastRightCycleAt) <= PAIR_WINDOW_MS;
 
-                        if (pose !== lastPose) {
-                          if (expectedPose === 'NONE') {
-                            expectedPose = pose === 'RIGHT_HIGH' ? 'LEFT_HIGH' : 'RIGHT_HIGH';
-                          } else if (pose === expectedPose) {
-                            triggerUntil = Date.now() + 320;
-                            expectedPose = pose === 'RIGHT_HIGH' ? 'LEFT_HIGH' : 'RIGHT_HIGH';
-                          } else {
-                            // Re-sync quickly if the user starts on the opposite side.
-                            expectedPose = pose === 'RIGHT_HIGH' ? 'LEFT_HIGH' : 'RIGHT_HIGH';
-                          }
+                      if (bothRecentCycles) {
+                        triggerUntil = now + 300;
+                        lastLeftCycleAt = 0;
+                        lastRightCycleAt = 0;
+                        clientMessage = 'Rep detected';
+                        phase = 'REP';
+                      } else {
+                        const leftMoved = lastLeftCycleAt > 0 && now - lastLeftCycleAt <= PAIR_WINDOW_MS;
+                        const rightMoved = lastRightCycleAt > 0 && now - lastRightCycleAt <= PAIR_WINDOW_MS;
+                        if (leftMoved && !rightMoved) {
+                          clientMessage = 'Right hand up/down next';
+                        } else if (!leftMoved && rightMoved) {
+                          clientMessage = 'Left hand up/down next';
+                        } else {
+                          clientMessage = 'Move both hands up and down';
                         }
+                        phase = 'TRACKING';
                       }
 
-                      lastPose = pose;
+                      const freshSignal = Date.now() < triggerUntil;
 
                       latestSignal = {
                         handCount,
-                        gestureDetected: Date.now() < triggerUntil,
+                        gestureDetected: freshSignal,
                         confidence,
                         clientMessage,
                         phase
@@ -656,6 +724,10 @@ final class WebAssets {
                       inFlightRequests = 0;
                       latestSentSequence = 0;
                       latestAppliedSequence = 0;
+                      lastLeftCycleAt = 0;
+                      lastRightCycleAt = 0;
+                      resetMotionTrack(leftTrack);
+                      resetMotionTrack(rightTrack);
 
                       const hardwareThreads = navigator.hardwareConcurrency || 8;
                       parallelUploadsInput.value = String(Math.max(2, Math.min(12, Math.floor(hardwareThreads / 2))));
@@ -677,6 +749,10 @@ final class WebAssets {
                     async function startSession() {
                       try {
                         sessionActive = true;
+                        lastLeftCycleAt = 0;
+                        lastRightCycleAt = 0;
+                        resetMotionTrack(leftTrack);
+                        resetMotionTrack(rightTrack);
                         resultScreen.classList.remove('active');
                         countdownScreen.classList.add('active');
 
