@@ -360,8 +360,8 @@ final class WebAssets {
                         <div class="kpi"><div class="label">Confidence</div><div id="confidenceDisplay" class="value">0.00</div></div>
                       </div>
                       <p class="guide">
-                        Gesture67 tracking rule in this build: keep both palms up and alternate which hand is higher.
-                        Each side-switch emits a rep signal to the Java backend.
+                        Gesture67 tracking rule in this build: move either visible hand up and down with confidence above 40%.
+                        Each completed motion cycle emits a rep signal to the Java backend.
                       </p>
                     </aside>
                   </main>
@@ -408,8 +408,8 @@ final class WebAssets {
                     hands.setOptions({
                       maxNumHands: 2,
                       modelComplexity: 1,
-                      minDetectionConfidence: 0.6,
-                      minTrackingConfidence: 0.55
+                      minDetectionConfidence: 0.4,
+                      minTrackingConfidence: 0.4
                     });
 
                     let camera = null;
@@ -429,11 +429,14 @@ final class WebAssets {
                     let latestAppliedSequence = 0;
                     let lastLeftCycleAt = 0;
                     let lastRightCycleAt = 0;
+                    let lastRepAt = 0;
 
-                    const MOTION_AMPLITUDE = 0.04;
-                    const MOTION_DELTA = 0.006;
-                    const MOTION_COOLDOWN_MS = 160;
-                    const PAIR_WINDOW_MS = 2200;
+                    const MOTION_AMPLITUDE = 0.022;
+                    const MOTION_DELTA = 0.003;
+                    const MOTION_COOLDOWN_MS = 110;
+                    const REP_CONFIDENCE_THRESHOLD = 0.40;
+                    const REP_COOLDOWN_MS = 280;
+                    const SIGNAL_HOLD_MS = 220;
 
                     const leftTrack = createMotionTrack();
                     const rightTrack = createMotionTrack();
@@ -539,32 +542,37 @@ final class WebAssets {
                       const baseConfidence = handCount === 0 ? 0 : (handCount === 1 ? 0.45 : 0.72);
                       const confidence = Math.max(baseConfidence, handednessConfidence);
 
-                      let clientMessage = 'Need both hands';
+                      let clientMessage = 'Move hand(s) up and down';
                       let phase = 'TRACKING';
 
-                      if (handCount < 2) {
-                        if (handCount === 0 || now - leftTrack.lastSeenAt > 450) {
+                      if (handCount === 0) {
+                        if (now - leftTrack.lastSeenAt > 280) {
                           resetMotionTrack(leftTrack);
                         }
-                        if (handCount === 0 || now - rightTrack.lastSeenAt > 450) {
+                        if (now - rightTrack.lastSeenAt > 280) {
                           resetMotionTrack(rightTrack);
                         }
-
                         latestSignal = {
                           handCount,
-                          gestureDetected: Date.now() < triggerUntil,
+                          gestureDetected: false,
                           confidence,
-                          clientMessage,
-                          phase: handCount === 0 ? 'NO_HANDS' : 'ONE_HAND'
+                          clientMessage: 'No hands',
+                          phase: 'NO_HANDS'
                         };
                         return;
                       }
 
                       const leftOnScreen = snapshots[0];
-                      const rightOnScreen = snapshots[1];
+                      const rightOnScreen = snapshots[1] || null;
 
                       const leftCycle = updateMotionTrack(leftTrack, leftOnScreen.centerY, now);
-                      const rightCycle = updateMotionTrack(rightTrack, rightOnScreen.centerY, now);
+                      const rightCycle = rightOnScreen
+                        ? updateMotionTrack(rightTrack, rightOnScreen.centerY, now)
+                        : false;
+
+                      if (!rightOnScreen && now - rightTrack.lastSeenAt > 280) {
+                        resetMotionTrack(rightTrack);
+                      }
 
                       if (leftCycle) {
                         lastLeftCycleAt = now;
@@ -573,30 +581,27 @@ final class WebAssets {
                         lastRightCycleAt = now;
                       }
 
-                      const bothRecentCycles = lastLeftCycleAt > 0
-                        && lastRightCycleAt > 0
-                        && Math.abs(lastLeftCycleAt - lastRightCycleAt) <= PAIR_WINDOW_MS;
+                      const anyCycle = leftCycle || rightCycle;
+                      const confidenceOk = confidence >= REP_CONFIDENCE_THRESHOLD;
+                      const cooldownOk = now - lastRepAt >= REP_COOLDOWN_MS;
 
-                      if (bothRecentCycles) {
-                        triggerUntil = now + 300;
-                        lastLeftCycleAt = 0;
-                        lastRightCycleAt = 0;
+                      if (anyCycle && confidenceOk && cooldownOk) {
+                        lastRepAt = now;
+                        triggerUntil = now + SIGNAL_HOLD_MS;
                         clientMessage = 'Rep detected';
                         phase = 'REP';
                       } else {
-                        const leftMoved = lastLeftCycleAt > 0 && now - lastLeftCycleAt <= PAIR_WINDOW_MS;
-                        const rightMoved = lastRightCycleAt > 0 && now - lastRightCycleAt <= PAIR_WINDOW_MS;
-                        if (leftMoved && !rightMoved) {
-                          clientMessage = 'Right hand up/down next';
-                        } else if (!leftMoved && rightMoved) {
-                          clientMessage = 'Left hand up/down next';
+                        if (anyCycle && !confidenceOk) {
+                          clientMessage = 'Motion seen, confidence below 0.40';
+                        } else if (handCount === 1) {
+                          clientMessage = 'One hand tracked: keep moving up/down';
                         } else {
-                          clientMessage = 'Move both hands up and down';
+                          clientMessage = 'Move either hand up/down quickly';
                         }
                         phase = 'TRACKING';
                       }
 
-                      const freshSignal = Date.now() < triggerUntil;
+                      const freshSignal = now < triggerUntil;
 
                       latestSignal = {
                         handCount,
@@ -726,6 +731,7 @@ final class WebAssets {
                       latestAppliedSequence = 0;
                       lastLeftCycleAt = 0;
                       lastRightCycleAt = 0;
+                      lastRepAt = 0;
                       resetMotionTrack(leftTrack);
                       resetMotionTrack(rightTrack);
 
@@ -751,6 +757,7 @@ final class WebAssets {
                         sessionActive = true;
                         lastLeftCycleAt = 0;
                         lastRightCycleAt = 0;
+                        lastRepAt = 0;
                         resetMotionTrack(leftTrack);
                         resetMotionTrack(rightTrack);
                         resultScreen.classList.remove('active');
