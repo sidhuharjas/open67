@@ -130,7 +130,7 @@ final class WebAssets {
 
                     .controls {
                       display: grid;
-                      grid-template-columns: repeat(3, minmax(0, 1fr));
+                      grid-template-columns: repeat(4, minmax(0, 1fr));
                       gap: 10px;
                     }
 
@@ -334,6 +334,9 @@ final class WebAssets {
                         <label>Frame interval ms
                           <input id="frameInterval" type="number" min="60" value="120" />
                         </label>
+                        <label>Parallel uploads
+                          <input id="parallelUploads" type="number" min="1" max="16" value="4" />
+                        </label>
                       </div>
 
                       <div class="actionRow">
@@ -384,6 +387,7 @@ final class WebAssets {
                     const targetCountInput = document.getElementById('targetCount');
                     const timerSecondsInput = document.getElementById('timerSeconds');
                     const frameIntervalInput = document.getElementById('frameInterval');
+                    const parallelUploadsInput = document.getElementById('parallelUploads');
                     const startCamBtn = document.getElementById('startCamBtn');
                     const stopCamBtn = document.getElementById('stopCamBtn');
                     const goBtn = document.getElementById('goBtn');
@@ -422,6 +426,9 @@ final class WebAssets {
                     let lastPose = 'NONE';
                     let expectedPose = 'NONE';
                     let triggerUntil = 0;
+                    let inFlightRequests = 0;
+                    let latestSentSequence = 0;
+                    let latestAppliedSequence = 0;
 
                     function setStatus(message, isError = false) {
                       statusEl.textContent = message;
@@ -430,6 +437,11 @@ final class WebAssets {
 
                     function setPhase(text) {
                       phaseBadge.textContent = text;
+                    }
+
+                    function maxParallelUploads() {
+                      const requested = Number(parallelUploadsInput.value) || 1;
+                      return Math.max(1, Math.min(16, requested));
                     }
 
                     function handSnapshot(landmarks) {
@@ -578,7 +590,7 @@ final class WebAssets {
                       }
                     }
 
-                    async function sendFrameSignal() {
+                    async function sendFrameSignal(sequence) {
                       if (!running || !video.srcObject) return;
 
                       sendCanvas.width = video.videoWidth || 640;
@@ -602,8 +614,26 @@ final class WebAssets {
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
                         body: payload
                       });
+                      const state = await response.json();
+                      if (sequence >= latestAppliedSequence) {
+                        latestAppliedSequence = sequence;
+                        updateUi(state);
+                      }
+                    }
 
-                      updateUi(await response.json());
+                    function queueFrameSignal() {
+                      if (!running || !video.srcObject) return;
+                      if (inFlightRequests >= maxParallelUploads()) return;
+
+                      inFlightRequests++;
+                      const sequence = ++latestSentSequence;
+                      sendFrameSignal(sequence)
+                        .catch((error) => {
+                          setStatus('Frame sync failed: ' + (error.message || error), true);
+                        })
+                        .finally(() => {
+                          inFlightRequests = Math.max(0, inFlightRequests - 1);
+                        });
                     }
 
                     async function startCamera() {
@@ -623,15 +653,17 @@ final class WebAssets {
 
                       await camera.start();
                       running = true;
+                      inFlightRequests = 0;
+                      latestSentSequence = 0;
+                      latestAppliedSequence = 0;
+
+                      const hardwareThreads = navigator.hardwareConcurrency || 8;
+                      parallelUploadsInput.value = String(Math.max(2, Math.min(12, Math.floor(hardwareThreads / 2))));
                       setStatus('Camera active. Press Go to start countdown.');
 
                       const loop = async () => {
                         if (!running) return;
-                        try {
-                          await sendFrameSignal();
-                        } catch (error) {
-                          setStatus('Frame sync failed: ' + (error.message || error), true);
-                        }
+                        queueFrameSignal();
                         frameLoopHandle = window.setTimeout(loop, Number(frameIntervalInput.value) || 140);
                       };
                       loop();

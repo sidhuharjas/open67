@@ -16,12 +16,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 
 public final class Open67WebServer {
 
     private final int port;
     private final Gesture67Detector detector = new Gesture67Detector();
     private final GestureSession session = new GestureSession();
+    private final int workerThreads = Math.max(4, Runtime.getRuntime().availableProcessors() * 2);
 
     public Open67WebServer(int port) {
         this.port = port;
@@ -35,14 +37,16 @@ public final class Open67WebServer {
             server.createContext("/api/state", new StateHandler());
             server.createContext("/api/reset", new ResetHandler());
             server.createContext("/api/start", new StartHandler());
-            server.setExecutor(Executors.newCachedThreadPool(runnable -> {
+            ThreadFactory threadFactory = runnable -> {
                 Thread thread = new Thread(runnable, "open67-web");
                 thread.setDaemon(false);
                 return thread;
-            }));
+            };
+            server.setExecutor(Executors.newFixedThreadPool(workerThreads, threadFactory));
             server.start();
 
             System.out.println("Open67 web app running at http://localhost:" + port);
+            System.out.println("Open67 worker threads: " + workerThreads);
             System.out.println("If you are in Codespaces, forward port " + port + " and open the browser URL.");
         } catch (IOException ioException) {
             throw new IllegalStateException("Failed to start web server", ioException);
