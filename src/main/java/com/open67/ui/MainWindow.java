@@ -18,6 +18,8 @@ import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.OverlayLayout;
+import javax.swing.Timer;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
@@ -58,6 +60,9 @@ public final class MainWindow {
     private final JTextField timerSecondsField = new JTextField(Integer.toString(DEFAULT_TIMER_SECONDS), 6);
     private final JButton startButton = new JButton("Start");
     private final JButton calibrateButton = new JButton("Calibrate");
+    private final JPanel calibrateOverlay = new JPanel();
+    private final JLabel calibrateText = new JLabel("Put both hands up with palms facing camera", SwingConstants.CENTER);
+    private final JLabel calibrateCountdown = new JLabel("3", SwingConstants.CENTER);
 
     private volatile FrameSource frameSource;
     private volatile boolean running;
@@ -115,10 +120,31 @@ public final class MainWindow {
         startButton.setFocusable(false);
         calibrateButton.setFocusable(false);
 
-        JPanel previewPanel = new JPanel(new BorderLayout());
+        JPanel previewPanel = new JPanel();
         previewPanel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
         previewPanel.setBackground(new Color(18, 20, 28));
-        previewPanel.add(previewLabel, BorderLayout.CENTER);
+        previewPanel.setLayout(new OverlayLayout(previewPanel));
+
+        // configure overlay (hidden by default)
+        calibrateOverlay.setOpaque(true);
+        calibrateOverlay.setBackground(new Color(0, 0, 0, 180));
+        calibrateOverlay.setLayout(new BorderLayout());
+        calibrateText.setForeground(Color.WHITE);
+        calibrateText.setFont(calibrateText.getFont().deriveFont(Font.BOLD, 18f));
+        calibrateCountdown.setForeground(Color.WHITE);
+        calibrateCountdown.setFont(calibrateCountdown.getFont().deriveFont(Font.BOLD, 32f));
+
+        JPanel box = new JPanel(new BorderLayout());
+        box.setOpaque(false);
+        box.add(calibrateText, BorderLayout.CENTER);
+        box.add(calibrateCountdown, BorderLayout.SOUTH);
+        box.setBorder(BorderFactory.createEmptyBorder(24,24,24,24));
+
+        calibrateOverlay.add(box, BorderLayout.CENTER);
+        calibrateOverlay.setVisible(false);
+
+        previewPanel.add(previewLabel);
+        previewPanel.add(calibrateOverlay);
 
         frame.add(sidebar, BorderLayout.WEST);
         frame.add(previewPanel, BorderLayout.CENTER);
@@ -169,6 +195,30 @@ public final class MainWindow {
         calibrateButton.addActionListener(event -> {
             detector.startCalibration();
             updateStatusOnEdt("Status: put both hands up to calibrate");
+
+            // show overlay and run 3s countdown
+            SwingUtilities.invokeLater(() -> {
+                calibrateCountdown.setText("3");
+                calibrateOverlay.setVisible(true);
+            });
+
+            final int[] remaining = {3};
+            Timer timer = new Timer(1000, null);
+            timer.addActionListener(e -> {
+                remaining[0] -= 1;
+                if (remaining[0] > 0) {
+                    SwingUtilities.invokeLater(() -> calibrateCountdown.setText(Integer.toString(remaining[0])));
+                } else {
+                    timer.stop();
+                    SwingUtilities.invokeLater(() -> {
+                        calibrateCountdown.setText("Done");
+                        calibrateOverlay.setVisible(false);
+                        updateStatusOnEdt("Status: calibration complete");
+                    });
+                }
+            });
+            timer.setInitialDelay(1000);
+            timer.start();
         });
 
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
