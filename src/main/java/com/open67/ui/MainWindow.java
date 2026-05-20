@@ -193,6 +193,11 @@ public final class MainWindow {
             }
         });
         calibrateButton.addActionListener(event -> {
+            if (!running) {
+                updateStatusOnEdt("Status: start camera first to calibrate");
+                return;
+            }
+
             detector.startCalibration();
             updateStatusOnEdt("Status: put both hands up to calibrate");
 

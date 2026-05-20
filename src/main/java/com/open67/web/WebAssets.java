@@ -178,6 +178,29 @@ final class WebAssets {
                       background: rgba(12, 29, 37, 0.92);
                     }
 
+                    /* Calibration overlay */
+                    .calibrateOverlay {
+                      position: fixed;
+                      inset: 0;
+                      background: rgba(0,0,0,0.78);
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      z-index: 9999;
+                      color: #ffffff;
+                      font-size: 1.8rem;
+                      text-align: center;
+                      padding: 24px;
+                    }
+
+                    .calibrateBox {
+                      max-width: 760px;
+                      background: rgba(6,20,28,0.9);
+                      border-radius: 12px;
+                      padding: 28px;
+                      border: 1px solid rgba(255,255,255,0.06);
+                    }
+
                     .stats {
                       padding: 18px;
                       display: grid;
@@ -348,6 +371,15 @@ final class WebAssets {
                         <button id="resetBtn" class="secondary">Reset</button>
                         <button id="calibrateBtn" class="primary" title="Click to calibrate skin tones">Calibrate</button>
                         <button id="stopCamBtn" class="secondary">Stop Camera</button>
+                      </div>
+
+                      <!-- Calibration overlay (hidden by default) -->
+                      <div id="calibrateOverlay" class="calibrateOverlay" hidden>
+                        <div class="calibrateBox">
+                          <div id="calibrateText">Put both hands up with palms facing camera</div>
+                          <div style="height:16px"></div>
+                          <div id="calibrateCountdown" style="font-weight:800; font-size:2.4rem; margin-top:8px">3</div>
+                        </div>
                       </div>
 
                       <div id="status" class="statusLine">Waiting to start camera.</div>
@@ -910,7 +942,33 @@ final class WebAssets {
                     resetBtn.addEventListener('click', () => resetSession());
 
                     calibrateBtn.addEventListener("click", async () => {
-                        await fetch("/api/calibrate", { method: "POST" });
+                        // only allow calibration when camera is running
+                        if (!running) {
+                            setStatus('Start camera first to calibrate', true);
+                            return;
+                        }
+
+                        // show local overlay and countdown
+                        const overlay = document.getElementById('calibrateOverlay');
+                        const countdownEl = document.getElementById('calibrateCountdown');
+                        overlay.hidden = false;
+                        let remaining = 3;
+                        countdownEl.textContent = String(remaining);
+                        // fire server calibration in background
+                        const calibratePromise = fetch("/api/calibrate", { method: "POST" }).catch(() => {});
+                        const tick = () => {
+                          remaining -= 1;
+                          if (remaining >= 1) {
+                            countdownEl.textContent = String(remaining);
+                            setTimeout(tick, 1000);
+                          } else {
+                            countdownEl.textContent = 'Done';
+                            // hide after short delay
+                            setTimeout(() => { overlay.hidden = true; }, 700);
+                          }
+                        };
+                        setTimeout(tick, 1000);
+                        await calibratePromise;
                     });
         
                     againBtn.addEventListener('click', async () => {
