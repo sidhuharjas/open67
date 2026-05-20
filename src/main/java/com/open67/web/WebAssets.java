@@ -969,8 +969,8 @@ final class WebAssets {
                             setTimeout(tick, 1000);
                           } else {
                             countdownEl.textContent = 'Done';
-                            // hide after short delay
-                            setTimeout(() => { overlay.hidden = true; }, 700);
+                            // hide after short delay and remove overlay from DOM
+                              setTimeout(() => { try { overlay.remove(); } catch(e) { overlay.hidden = true; } }, 700);
                           }
                         };
                         setTimeout(tick, 1000);
