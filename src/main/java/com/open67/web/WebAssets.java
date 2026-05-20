@@ -335,7 +335,10 @@ final class WebAssets {
                           <input id="frameInterval" type="number" min="40" value="70" />
                         </label>
                         <label>Parallel uploads
-                          <input id="parallelUploads" type="number" min="1" max="32" value="8" />
+                            <input id="parallelUploads" type="number" min="1" max="32" value="8" />
+                        </label>
+                        <label>67-speed
+                          <input id="speed67Toggle" type="checkbox" />
                         </label>
                       </div>
 
@@ -434,15 +437,20 @@ final class WebAssets {
                     let stableHandCount = 0;
                     let lastHandsSeenAt = 0;
 
-                    const MOTION_AMPLITUDE = 0.012;
-                    const MOTION_DELTA = 0.0018;
-                    const MOTION_COOLDOWN_MS = 70;
-                    const REP_CONFIDENCE_THRESHOLD = 0.32;
-                    const REP_COOLDOWN_MS = 95;
-                    const SIGNAL_HOLD_MS = 120;
-                    const HAND_VISIBILITY_HOLD_MS = 360;
-                    const TRACK_STALE_MS = 280;
-                    const CONFIDENCE_SMOOTHING = 0.35;
+                    let MOTION_AMPLITUDE = 0.012;
+                    let MOTION_DELTA = 0.0018;
+                    let MOTION_COOLDOWN_MS = 70;
+                    let REP_CONFIDENCE_THRESHOLD = 0.32;
+                    let REP_COOLDOWN_MS = 95;
+                    let SIGNAL_HOLD_MS = 120;
+                    let HAND_VISIBILITY_HOLD_MS = 360;
+                    let TRACK_STALE_MS = 280;
+                    let CONFIDENCE_SMOOTHING = 0.35;
+                    let AGGRESSIVE_MODE = false;
+                    let calibrating = false;
+                    let calibSamples = 0;
+                    let calibSum = 0;
+                    const CALIB_DURATION_MS = 1500;
 
                     const leftTrack = createMotionTrack();
                     const rightTrack = createMotionTrack();
@@ -504,6 +512,10 @@ final class WebAssets {
 
                       const amplitude = track.maxY - track.minY;
                       const canFire = now >= track.cooldownUntil;
+                      if (calibrating && amplitude > 0) {
+                        calibSum += amplitude;
+                        calibSamples += 1;
+                      }
                       if (canFire && track.sawUp && track.sawDown && amplitude >= MOTION_AMPLITUDE) {
                         track.cooldownUntil = now + MOTION_COOLDOWN_MS;
                         track.sawUp = false;
@@ -769,6 +781,11 @@ final class WebAssets {
 
                       const hardwareThreads = navigator.hardwareConcurrency || 8;
                       parallelUploadsInput.value = String(Math.max(6, Math.min(24, hardwareThreads)));
+                      // set fast defaults if user has strong CPU
+                      if ((navigator.hardwareConcurrency || 8) >= 8) {
+                        frameIntervalInput.value = String(Math.max(40, Number(frameIntervalInput.value) - 20));
+                        parallelUploadsInput.value = String(Math.max(8, Math.min(32, hardwareThreads)));
+                      }
                       setStatus('Camera active. Press Go to start countdown.');
 
                       const loop = async () => {
@@ -804,7 +821,36 @@ final class WebAssets {
                           headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
                           body
                         });
-
+                        // If user requested aggressive 67-speed mode, enable fast defaults and auto-calibrate
+                        AGGRESSIVE_MODE = !!document.getElementById('speed67Toggle').checked;
+                        if (AGGRESSIVE_MODE) {
+                          setStatus('67-speed: calibrating...', false);
+                          calibrating = true;
+                          calibSamples = 0;
+                          calibSum = 0;
+                          const endAt = Date.now() + CALIB_DURATION_MS;
+                          // wait until calibration duration elapses while samples accumulate in updateMotionTrack
+                          await new Promise(resolve => setTimeout(resolve, CALIB_DURATION_MS));
+                          calibrating = false;
+                          const avg = calibSamples > 0 ? (calibSum / calibSamples) : 0;
+                          if (avg > 0) {
+                            // set aggressive tuned thresholds based on observed motion
+                            MOTION_AMPLITUDE = Math.max(0.006, Math.min(0.02, avg * 0.6));
+                            MOTION_DELTA = Math.max(0.0009, MOTION_AMPLITUDE * 0.12);
+                          } else {
+                            MOTION_AMPLITUDE = 0.008;
+                            MOTION_DELTA = 0.0012;
+                          }
+                          // tighten cooldowns for high-speed counting
+                          MOTION_COOLDOWN_MS = 40;
+                          REP_COOLDOWN_MS = 60;
+                          REP_CONFIDENCE_THRESHOLD = 0.25;
+                          SIGNAL_HOLD_MS = 90;
+                          // speed up frame loop when aggressive
+                          frameIntervalInput.value = String(Math.max(40, Number(frameIntervalInput.value) - 20));
+                          parallelUploadsInput.value = String(Math.max(8, Math.min(32, navigator.hardwareConcurrency || 12)));
+                          setStatus('67-speed: calibrated', false);
+                        }
                         const ticks = ['3', '2', '1', 'GO'];
                         for (const value of ticks) {
                           countdownValue.textContent = value;
