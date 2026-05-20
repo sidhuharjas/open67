@@ -17,11 +17,23 @@ import java.util.List;
 
 public final class Gesture67Detector {
 
-    private static final Scalar LOWER_SKIN = new Scalar(133, 77, 0);
-    private static final Scalar UPPER_SKIN = new Scalar(173, 127, 255);
+    private Scalar lowerSkin = new Scalar(133, 77, 0);
+    private Scalar upperSkin = new Scalar(173, 127, 255);
     private static final double MIN_CONTOUR_AREA = 3500.0;
-    private static final double MIN_DEFECT_DEPTH = 12.0;
-    private static final double MAX_SOLIDITY = 0.88;
+    private static final double MIN_SOL_CONFIDENCE = 0.40; // 40 percent sure
+
+    private Point prevLeftHand = null;
+    private Point prevRightHand = null;
+    private boolean calibrating = false;
+    private long calibrationStart = 0;
+
+    private int leftMoveCount = 0;
+    private int rightMoveCount = 0;
+
+    public synchronized void startCalibration() {
+        calibrating = true;
+        calibrationStart = System.currentTimeMillis();
+    }
 
     public GestureDetectionResult detect(Mat frame) {
         if (frame == null || frame.empty()) {
@@ -36,7 +48,7 @@ public final class Gesture67Detector {
 
         try {
             Imgproc.cvtColor(frame, yCrCb, Imgproc.COLOR_BGR2YCrCb);
-            Core.inRange(yCrCb, LOWER_SKIN, UPPER_SKIN, skinMask);
+            Core.inRange(yCrCb, lowerSkin, upperSkin, skinMask);
             Imgproc.GaussianBlur(skinMask, blurred, new Size(7, 7), 0);
             Imgproc.morphologyEx(blurred, blurred, Imgproc.MORPH_OPEN, morphKernel);
             Imgproc.morphologyEx(blurred, blurred, Imgproc.MORPH_CLOSE, morphKernel);
@@ -47,25 +59,93 @@ public final class Gesture67Detector {
                 return new GestureDetectionResult(false, null, 0, 0.0, 0.0, "No hand contour");
             }
 
-            MatOfPoint contour = contours.stream()
-                    .max(Comparator.comparingDouble(Imgproc::contourArea))
-                    .orElse(contours.get(0));
-
-            double area = Imgproc.contourArea(contour);
-            if (area < MIN_CONTOUR_AREA) {
-                return new GestureDetectionResult(false, Imgproc.boundingRect(contour), 0, 0.0, area, "Hand too small");
+            List<MatOfPoint> validContours = new ArrayList<>();
+            for (MatOfPoint c : contours) {
+                if (Imgproc.contourArea(c) >= MIN_CONTOUR_AREA && computeSolidity(c) >= MIN_SOL_CONFIDENCE) {
+                    validContours.add(c);
+                }
             }
 
-            Rect bounds = Imgproc.boundingRect(contour);
-            double solidity = computeSolidity(contour);
-            int defectCount = countDefects(contour);
+            validContours.sort((c1, c2) -> Double.compare(Imgproc.contourArea(c2), Imgproc.contourArea(c1)));
 
-                boolean detected = defectCount >= 2 && defectCount <= 4 && solidity <= MAX_SOLIDITY;
-                String message = detected
-                    ? "Gesture 67 detected"
-                    : String.format("Contour ready | defects=%d | solidity=%.2f", defectCount, solidity);
+            if (validContours.isEmpty()) {
+                return new GestureDetectionResult(false, null, 0, 0.0, 0.0, "Waiting for hands (solidity > 40%)");
+            }
 
-                return new GestureDetectionResult(detected, bounds, defectCount, solidity, area, message);
+            double moveThreshold = 20.0;
+            double totalArea = 0;
+            Rect combinedBounds = null;
+
+            Point currentLeft = null;
+            Point currentRight = null;
+
+            if (validContours.size() >= 2) {
+                MatOfPoint hand1 = validContours.get(0);
+                MatOfPoint hand2 = validContours.get(1);
+
+                Rect b1 = Imgproc.boundingRect(hand1);
+                Rect b2 = Imgproc.boundingRect(hand2);
+
+                Rect leftBounds = b1.x < b2.x ? b1 : b2;
+                Rect rightBounds = b1.x < b2.x ? b2 : b1;
+
+                currentLeft = new Point(leftBounds.x + leftBounds.width / 2.0, leftBounds.y + leftBounds.height / 2.0);
+                currentRight = new Point(rightBounds.x + rightBounds.width / 2.0, rightBounds.y + rightBounds.height / 2.0);
+
+                totalArea = Imgproc.contourArea(hand1) + Imgproc.contourArea(hand2);
+
+                combinedBounds = new Rect(
+                    Math.min(leftBounds.x, rightBounds.x),
+                    Math.min(leftBounds.y, rightBounds.y),
+                    Math.max(leftBounds.x + leftBounds.width, rightBounds.x + rightBounds.width) - Math.min(leftBounds.x, rightBounds.x),
+                    Math.max(leftBounds.y + leftBounds.height, rightBounds.y + rightBounds.height) - Math.min(leftBounds.y, rightBounds.y)
+                );
+            } else {
+                MatOfPoint hand = validContours.get(0);
+                Rect b = Imgproc.boundingRect(hand);
+                Point center = new Point(b.x + b.width / 2.0, b.y + b.height / 2.0);
+                combinedBounds = b.clone();
+                totalArea = Imgproc.contourArea(hand);
+
+                // Assign to left or right based on frame half
+                if (center.x < frame.cols() / 2.0) {
+                    currentLeft = center;
+                } else {
+                    currentRight = center;
+                }
+            }
+
+            // check movement left
+            if (currentLeft != null) {
+                if (prevLeftHand != null) {
+                    if (Math.abs(currentLeft.y - prevLeftHand.y) > moveThreshold) {
+                        leftMoveCount++;
+                        prevLeftHand = currentLeft;
+                    }
+                } else {
+                    prevLeftHand = currentLeft;
+                }
+            }
+
+            // check movement right
+            if (currentRight != null) {
+                if (prevRightHand != null) {
+                    if (Math.abs(currentRight.y - prevRightHand.y) > moveThreshold) {
+                        rightMoveCount++;
+                        prevRightHand = currentRight;
+                    }
+                } else {
+                    prevRightHand = currentRight;
+                }
+            }
+
+            int totalMoves = leftMoveCount + rightMoveCount;
+            // Both hands don't have to be detected, just start counting!
+            boolean detected = totalMoves > 0;
+            String message = String.format("Hands Moving | L: %d | R: %d | Total: %d", leftMoveCount, rightMoveCount, totalMoves);
+
+            return new GestureDetectionResult(detected, combinedBounds, totalMoves, 1.0, totalArea, message);
+
         } finally {
             yCrCb.release();
             skinMask.release();
@@ -98,64 +178,6 @@ public final class Gesture67Detector {
             hullIndices.release();
             hullPoints.release();
         }
-    }
-
-    private int countDefects(MatOfPoint contour) {
-        MatOfInt hull = new MatOfInt();
-        MatOfInt4 defects = new MatOfInt4();
-        try {
-            Imgproc.convexHull(contour, hull, false);
-            if (hull.total() < 4) {
-                return 0;
-            }
-
-            Imgproc.convexityDefects(contour, hull, defects);
-            int[] defectData = defects.toArray();
-            if (defectData.length == 0) {
-                return 0;
-            }
-
-            Point[] contourPoints = contour.toArray();
-            int count = 0;
-            for (int index = 0; index + 3 < defectData.length; index += 4) {
-                int startIndex = defectData[index];
-                int endIndex = defectData[index + 1];
-                int farIndex = defectData[index + 2];
-                double depth = defectData[index + 3] / 256.0;
-
-                if (depth < MIN_DEFECT_DEPTH) {
-                    continue;
-                }
-
-                Point start = contourPoints[startIndex];
-                Point end = contourPoints[endIndex];
-                Point far = contourPoints[farIndex];
-                double angle = angleBetween(start, far, end);
-                if (angle < 100.0) {
-                    count++;
-                }
-            }
-
-            return count;
-        } finally {
-            hull.release();
-            defects.release();
-        }
-    }
-
-    private double angleBetween(Point start, Point far, Point end) {
-        double a = distance(far, end);
-        double b = distance(start, end);
-        double c = distance(start, far);
-
-        double denominator = 2.0 * a * c;
-        if (denominator == 0.0) {
-            return 180.0;
-        }
-
-        double cosValue = (a * a + c * c - b * b) / denominator;
-        cosValue = Math.max(-1.0, Math.min(1.0, cosValue));
-        return Math.toDegrees(Math.acos(cosValue));
     }
 
     private double distance(Point first, Point second) {

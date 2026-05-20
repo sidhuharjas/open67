@@ -37,6 +37,7 @@ public final class Open67WebServer {
             server.createContext("/api/state", new StateHandler());
             server.createContext("/api/reset", new ResetHandler());
             server.createContext("/api/start", new StartHandler());
+            server.createContext("/api/calibrate", new CalibrateHandler());
             ThreadFactory threadFactory = runnable -> {
                 Thread thread = new Thread(runnable, "open67-web");
                 thread.setDaemon(false);
@@ -90,6 +91,19 @@ public final class Open67WebServer {
                 session.reset();
             }
             sendJson(exchange, 200, session.toJson());
+        }
+    }
+
+    private final class CalibrateHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendText(exchange, 405, "Method Not Allowed", "text/plain; charset=utf-8");
+                return;
+            }
+
+            detector.startCalibration();
+            sendJson(exchange, 200, "{\"status\":\"calibrating\"}");
         }
     }
 

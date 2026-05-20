@@ -57,6 +57,7 @@ public final class MainWindow {
     private final JTextField targetCountField = new JTextField(Integer.toString(DEFAULT_TARGET_COUNT), 6);
     private final JTextField timerSecondsField = new JTextField(Integer.toString(DEFAULT_TIMER_SECONDS), 6);
     private final JButton startButton = new JButton("Start");
+    private final JButton calibrateButton = new JButton("Calibrate");
 
     private volatile FrameSource frameSource;
     private volatile boolean running;
@@ -109,8 +110,10 @@ public final class MainWindow {
         sidebar.add(createMetricCard("Source", sourceLabel));
         sidebar.add(createMetricCard("Status", statusLabel));
         sidebar.add(startButton);
+        sidebar.add(calibrateButton);
 
         startButton.setFocusable(false);
+        calibrateButton.setFocusable(false);
 
         JPanel previewPanel = new JPanel(new BorderLayout());
         previewPanel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
@@ -162,6 +165,10 @@ public final class MainWindow {
             } else {
                 startCapture();
             }
+        });
+        calibrateButton.addActionListener(event -> {
+            detector.startCalibration();
+            updateStatusOnEdt("Status: put both hands up to calibrate");
         });
 
         frame.addWindowListener(new java.awt.event.WindowAdapter() {

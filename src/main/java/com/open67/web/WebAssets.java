@@ -346,6 +346,7 @@ final class WebAssets {
                         <button id="startCamBtn" class="primary">Start Camera</button>
                         <button id="goBtn" class="primary">Go</button>
                         <button id="resetBtn" class="secondary">Reset</button>
+                        <button id="calibrateBtn" class="primary" title="Click to calibrate skin tones">Calibrate</button>
                         <button id="stopCamBtn" class="secondary">Stop Camera</button>
                       </div>
 
@@ -907,6 +908,11 @@ final class WebAssets {
 
                     stopCamBtn.addEventListener('click', () => stopCamera());
                     resetBtn.addEventListener('click', () => resetSession());
+
+                    calibrateBtn.addEventListener("click", async () => {
+                        await fetch("/api/calibrate", { method: "POST" });
+                    });
+        
                     againBtn.addEventListener('click', async () => {
                       resultScreen.classList.remove('active');
                       await resetSession();
