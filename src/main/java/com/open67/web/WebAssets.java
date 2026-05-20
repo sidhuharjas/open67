@@ -332,10 +332,10 @@ final class WebAssets {
                           <input id="timerSeconds" type="number" min="1" value="10" />
                         </label>
                         <label>Frame interval ms
-                          <input id="frameInterval" type="number" min="60" value="120" />
+                          <input id="frameInterval" type="number" min="40" value="70" />
                         </label>
                         <label>Parallel uploads
-                          <input id="parallelUploads" type="number" min="1" max="16" value="4" />
+                          <input id="parallelUploads" type="number" min="1" max="32" value="8" />
                         </label>
                       </div>
 
@@ -408,8 +408,8 @@ final class WebAssets {
                     hands.setOptions({
                       maxNumHands: 2,
                       modelComplexity: 1,
-                      minDetectionConfidence: 0.4,
-                      minTrackingConfidence: 0.4
+                      minDetectionConfidence: 0.35,
+                      minTrackingConfidence: 0.3
                     });
 
                     let camera = null;
@@ -430,6 +430,9 @@ final class WebAssets {
                     let lastLeftCycleAt = 0;
                     let lastRightCycleAt = 0;
                     let lastRepAt = 0;
+                    let smoothedConfidence = 0;
+                    let stableHandCount = 0;
+                    let lastHandsSeenAt = 0;
 
                     const MOTION_AMPLITUDE = 0.022;
                     const MOTION_DELTA = 0.003;
@@ -437,6 +440,9 @@ final class WebAssets {
                     const REP_CONFIDENCE_THRESHOLD = 0.40;
                     const REP_COOLDOWN_MS = 280;
                     const SIGNAL_HOLD_MS = 220;
+                    const HAND_VISIBILITY_HOLD_MS = 360;
+                    const TRACK_STALE_MS = 280;
+                    const CONFIDENCE_SMOOTHING = 0.45;
 
                     const leftTrack = createMotionTrack();
                     const rightTrack = createMotionTrack();
@@ -452,7 +458,7 @@ final class WebAssets {
 
                     function maxParallelUploads() {
                       const requested = Number(parallelUploadsInput.value) || 1;
-                      return Math.max(1, Math.min(16, requested));
+                      return Math.max(1, Math.min(32, requested));
                     }
 
                     function createMotionTrack() {
@@ -533,6 +539,11 @@ final class WebAssets {
                         .sort((a, b) => a.centerX - b.centerX);
                       const handCount = snapshots.length;
 
+                      if (handCount > 0) {
+                        stableHandCount = handCount;
+                        lastHandsSeenAt = now;
+                      }
+
                       const handednessScores = (results.multiHandedness || [])
                         .map(entry => entry?.classification?.[0]?.score)
                         .filter(score => Number.isFinite(score));
@@ -540,16 +551,34 @@ final class WebAssets {
                         ? handednessScores.reduce((sum, value) => sum + value, 0) / handednessScores.length
                         : 0;
                       const baseConfidence = handCount === 0 ? 0 : (handCount === 1 ? 0.45 : 0.72);
-                      const confidence = Math.max(baseConfidence, handednessConfidence);
+                      const rawConfidence = Math.max(baseConfidence, handednessConfidence);
+                      smoothedConfidence = smoothedConfidence === 0
+                        ? rawConfidence
+                        : (smoothedConfidence * (1 - CONFIDENCE_SMOOTHING)) + (rawConfidence * CONFIDENCE_SMOOTHING);
+                      const confidence = smoothedConfidence;
 
                       let clientMessage = 'Move hand(s) up and down';
                       let phase = 'TRACKING';
 
                       if (handCount === 0) {
-                        if (now - leftTrack.lastSeenAt > 280) {
+                        const inVisibilityHold = (now - lastHandsSeenAt) <= HAND_VISIBILITY_HOLD_MS;
+
+                        if (inVisibilityHold) {
+                          latestSignal = {
+                            handCount: stableHandCount,
+                            gestureDetected: now < triggerUntil,
+                            confidence,
+                            clientMessage: 'Tracking hold',
+                            phase: 'HOLD'
+                          };
+                          return;
+                        }
+
+                        stableHandCount = 0;
+                        if (now - leftTrack.lastSeenAt > TRACK_STALE_MS) {
                           resetMotionTrack(leftTrack);
                         }
-                        if (now - rightTrack.lastSeenAt > 280) {
+                        if (now - rightTrack.lastSeenAt > TRACK_STALE_MS) {
                           resetMotionTrack(rightTrack);
                         }
                         latestSignal = {
@@ -570,7 +599,7 @@ final class WebAssets {
                         ? updateMotionTrack(rightTrack, rightOnScreen.centerY, now)
                         : false;
 
-                      if (!rightOnScreen && now - rightTrack.lastSeenAt > 280) {
+                      if (!rightOnScreen && now - rightTrack.lastSeenAt > TRACK_STALE_MS) {
                         resetMotionTrack(rightTrack);
                       }
 
@@ -669,7 +698,7 @@ final class WebAssets {
                       sendCanvas.width = video.videoWidth || 640;
                       sendCanvas.height = video.videoHeight || 400;
                       sendCtx.drawImage(video, 0, 0, sendCanvas.width, sendCanvas.height);
-                      const imageDataUrl = sendCanvas.toDataURL('image/jpeg', 0.65);
+                      const imageDataUrl = sendCanvas.toDataURL('image/jpeg', 0.72);
 
                       const payload = new URLSearchParams({
                         hasClientSignal: 'true',
@@ -732,17 +761,20 @@ final class WebAssets {
                       lastLeftCycleAt = 0;
                       lastRightCycleAt = 0;
                       lastRepAt = 0;
+                      smoothedConfidence = 0;
+                      stableHandCount = 0;
+                      lastHandsSeenAt = 0;
                       resetMotionTrack(leftTrack);
                       resetMotionTrack(rightTrack);
 
                       const hardwareThreads = navigator.hardwareConcurrency || 8;
-                      parallelUploadsInput.value = String(Math.max(2, Math.min(12, Math.floor(hardwareThreads / 2))));
+                      parallelUploadsInput.value = String(Math.max(6, Math.min(24, hardwareThreads)));
                       setStatus('Camera active. Press Go to start countdown.');
 
                       const loop = async () => {
                         if (!running) return;
                         queueFrameSignal();
-                        frameLoopHandle = window.setTimeout(loop, Number(frameIntervalInput.value) || 140);
+                        frameLoopHandle = window.setTimeout(loop, Number(frameIntervalInput.value) || 80);
                       };
                       loop();
                     }
@@ -758,6 +790,9 @@ final class WebAssets {
                         lastLeftCycleAt = 0;
                         lastRightCycleAt = 0;
                         lastRepAt = 0;
+                        smoothedConfidence = 0;
+                        stableHandCount = 0;
+                        lastHandsSeenAt = 0;
                         resetMotionTrack(leftTrack);
                         resetMotionTrack(rightTrack);
                         resultScreen.classList.remove('active');
