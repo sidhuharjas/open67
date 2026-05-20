@@ -373,14 +373,7 @@ final class WebAssets {
                         <button id="stopCamBtn" class="secondary">Stop Camera</button>
                       </div>
 
-                      <!-- Calibration overlay (hidden by default) -->
-                      <div id="calibrateOverlay" class="calibrateOverlay" hidden>
-                        <div class="calibrateBox">
-                          <div id="calibrateText">Put both hands up with palms facing camera</div>
-                          <div style="height:16px"></div>
-                          <div id="calibrateCountdown" style="font-weight:800; font-size:2.4rem; margin-top:8px">3</div>
-                        </div>
-                      </div>
+                      <!-- Calibration overlay is created dynamically on demand -->
 
                       <div id="status" class="statusLine">Waiting to start camera.</div>
                     </section>
@@ -948,9 +941,22 @@ final class WebAssets {
                             return;
                         }
 
-                        // show local overlay and countdown
-                        const overlay = document.getElementById('calibrateOverlay');
-                        const countdownEl = document.getElementById('calibrateCountdown');
+                        // create overlay dynamically if it doesn't exist
+                        let overlay = document.getElementById('calibrateOverlay');
+                        if (!overlay) {
+                          overlay = document.createElement('div');
+                          overlay.id = 'calibrateOverlay';
+                          overlay.className = 'calibrateOverlay';
+                          overlay.innerHTML = `
+                            <div class="calibrateBox">
+                              <div id="calibrateText">Put both hands up with palms facing camera</div>
+                              <div style="height:16px"></div>
+                              <div id="calibrateCountdown" style="font-weight:800; font-size:2.4rem; margin-top:8px">3</div>
+                            </div>`;
+                          document.body.appendChild(overlay);
+                        }
+
+                        const countdownEl = overlay.querySelector('#calibrateCountdown');
                         overlay.hidden = false;
                         let remaining = 3;
                         countdownEl.textContent = String(remaining);
