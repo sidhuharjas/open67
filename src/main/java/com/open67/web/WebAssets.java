@@ -912,6 +912,16 @@ final class WebAssets {
                       setStatus('Camera stopped.');
                     }
 
+                    // remove any calibration overlay if present
+                    function removeCalibrationOverlay() {
+                      try {
+                        const existing = document.getElementById('calibrateOverlay');
+                        if (existing) existing.remove();
+                      } catch (e) {
+                        // ignore
+                      }
+                    }
+
                     startCamBtn.addEventListener('click', async () => {
                       try {
                         await startCamera();
@@ -933,6 +943,10 @@ final class WebAssets {
 
                     stopCamBtn.addEventListener('click', () => stopCamera());
                     resetBtn.addEventListener('click', () => resetSession());
+
+                    // ensure overlay removed when camera stops or page regains focus
+                    stopCamBtn.addEventListener('click', () => removeCalibrationOverlay());
+                    window.addEventListener('focus', () => removeCalibrationOverlay());
 
                     calibrateBtn.addEventListener("click", async () => {
                         // only allow calibration when camera is running
