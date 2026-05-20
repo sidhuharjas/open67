@@ -420,7 +420,7 @@ final class WebAssets {
                     let running = false;
                     let sessionActive = false;
                     let lastPose = 'NONE';
-                    let expectedPose = 'RIGHT_HIGH';
+                    let expectedPose = 'NONE';
                     let triggerUntil = 0;
 
                     function setStatus(message, isError = false) {
@@ -432,11 +432,6 @@ final class WebAssets {
                       phaseBadge.textContent = text;
                     }
 
-                    function getHandRole(label, index) {
-                      if (label === 'Right' || label === 'Left') return label;
-                      return index === 0 ? 'Right' : 'Left';
-                    }
-
                     function handSnapshot(landmarks) {
                       const wrist = landmarks[0];
                       const middleMcp = landmarks[9];
@@ -445,31 +440,35 @@ final class WebAssets {
                       const ringTip = landmarks[16];
                       const pinkyTip = landmarks[20];
                       const avgTipsY = (indexTip.y + middleTip.y + ringTip.y + pinkyTip.y) / 4;
-                      const palmUp = avgTipsY < wrist.y - 0.02;
                       return {
+                        centerX: middleMcp.x,
                         centerY: middleMcp.y,
-                        palmUp
+                        wristY: wrist.y,
+                        avgTipsY
                       };
                     }
 
                     function updateLocalGestureSignal(results) {
-                      const mapped = { Right: null, Left: null };
-                      let confidenceSum = 0;
+                      const snapshots = (results.multiHandLandmarks || [])
+                        .map(handSnapshot)
+                        .sort((a, b) => a.centerX - b.centerX);
+                      const handCount = snapshots.length;
 
-                      (results.multiHandLandmarks || []).forEach((landmarks, idx) => {
-                        const handedness = results.multiHandedness?.[idx]?.classification?.[0];
-                        const role = getHandRole(handedness?.label, idx);
-                        mapped[role] = handSnapshot(landmarks);
-                        confidenceSum += handedness?.score || 0.0;
-                      });
-
-                      const handCount = (mapped.Right ? 1 : 0) + (mapped.Left ? 1 : 0);
-                      const confidence = handCount > 0 ? confidenceSum / handCount : 0;
+                      const handednessScores = (results.multiHandedness || [])
+                        .map(entry => entry?.classification?.[0]?.score)
+                        .filter(score => Number.isFinite(score));
+                      const handednessConfidence = handednessScores.length > 0
+                        ? handednessScores.reduce((sum, value) => sum + value, 0) / handednessScores.length
+                        : 0;
+                      const baseConfidence = handCount === 0 ? 0 : (handCount === 1 ? 0.45 : 0.72);
+                      const confidence = Math.max(baseConfidence, handednessConfidence);
 
                       let clientMessage = 'Need both hands';
                       let phase = 'TRACKING';
 
                       if (handCount < 2) {
+                        lastPose = 'NONE';
+                        expectedPose = 'NONE';
                         latestSignal = {
                           handCount,
                           gestureDetected: Date.now() < triggerUntil,
@@ -480,25 +479,40 @@ final class WebAssets {
                         return;
                       }
 
-                      const bothUp = mapped.Right.palmUp && mapped.Left.palmUp;
-                      const diff = mapped.Right.centerY - mapped.Left.centerY;
-                      const threshold = 0.055;
+                      const leftOnScreen = snapshots[0];
+                      const rightOnScreen = snapshots[1];
+
+                      // Positive delta means right hand is physically higher than left in the frame.
+                      const deltaY = leftOnScreen.centerY - rightOnScreen.centerY;
+                      const enterThreshold = 0.045;
+                      const holdThreshold = 0.020;
 
                       let pose = 'LEVEL';
-                      if (diff < -threshold) pose = 'RIGHT_HIGH';
-                      if (diff > threshold) pose = 'LEFT_HIGH';
+                      if (deltaY > enterThreshold) {
+                        pose = 'RIGHT_HIGH';
+                      } else if (deltaY < -enterThreshold) {
+                        pose = 'LEFT_HIGH';
+                      } else if (Math.abs(deltaY) <= holdThreshold) {
+                        pose = 'LEVEL';
+                      } else {
+                        pose = lastPose === 'NONE' ? 'LEVEL' : lastPose;
+                      }
 
-                      if (!bothUp) {
-                        clientMessage = 'Rotate palms upward';
-                        phase = 'PALM_CHECK';
-                      } else if (pose === 'LEVEL') {
+                      if (pose === 'LEVEL') {
                         clientMessage = 'Move one hand higher';
                       } else {
                         clientMessage = pose === 'RIGHT_HIGH' ? 'Right hand high' : 'Left hand high';
 
-                        if (pose !== lastPose && pose === expectedPose) {
-                          triggerUntil = Date.now() + 260;
-                          expectedPose = expectedPose === 'RIGHT_HIGH' ? 'LEFT_HIGH' : 'RIGHT_HIGH';
+                        if (pose !== lastPose) {
+                          if (expectedPose === 'NONE') {
+                            expectedPose = pose === 'RIGHT_HIGH' ? 'LEFT_HIGH' : 'RIGHT_HIGH';
+                          } else if (pose === expectedPose) {
+                            triggerUntil = Date.now() + 320;
+                            expectedPose = pose === 'RIGHT_HIGH' ? 'LEFT_HIGH' : 'RIGHT_HIGH';
+                          } else {
+                            // Re-sync quickly if the user starts on the opposite side.
+                            expectedPose = pose === 'RIGHT_HIGH' ? 'LEFT_HIGH' : 'RIGHT_HIGH';
+                          }
                         }
                       }
 
@@ -509,7 +523,7 @@ final class WebAssets {
                         gestureDetected: Date.now() < triggerUntil,
                         confidence,
                         clientMessage,
-                        phase: bothUp ? phase : 'PALM_CHECK'
+                        phase
                       };
                     }
 
