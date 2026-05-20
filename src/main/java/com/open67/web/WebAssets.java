@@ -12,423 +12,709 @@ final class WebAssets {
                 <head>
                   <meta charset="utf-8" />
                   <meta name="viewport" content="width=device-width, initial-scale=1" />
-                  <title>Open67</title>
+                  <title>Open67 Motion Lab</title>
+                  <link rel="preconnect" href="https://fonts.googleapis.com">
+                  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+                  <link href="https://fonts.googleapis.com/css2?family=Audiowide&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
                   <style>
                     :root {
-                      color-scheme: dark;
-                      --bg: #0d1117;
-                      --panel: #161b22;
-                      --panel-2: #1f2630;
-                      --text: #e6edf3;
-                      --muted: #8b949e;
-                      --accent: #58a6ff;
-                      --ok: #3fb950;
-                      --warn: #d29922;
-                      --danger: #f85149;
+                      --bg-ink: #08131a;
+                      --bg-deep: #111319;
+                      --panel: rgba(7, 31, 40, 0.72);
+                      --panel-border: rgba(142, 248, 255, 0.26);
+                      --text: #e8f6ff;
+                      --muted: #9cc4d1;
+                      --accent: #38ffd6;
+                      --accent-2: #38a8ff;
+                      --danger: #ff6e6e;
+                      --ok: #9dff7d;
                     }
+
                     * { box-sizing: border-box; }
+
                     body {
                       margin: 0;
-                      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-                      background: radial-gradient(circle at top, #142033, var(--bg) 55%);
-                      color: var(--text);
                       min-height: 100vh;
+                      font-family: Manrope, Segoe UI, sans-serif;
+                      color: var(--text);
+                      background:
+                        radial-gradient(1200px 700px at 5% 10%, rgba(56, 255, 214, 0.16), transparent 62%),
+                        radial-gradient(900px 500px at 92% 18%, rgba(56, 168, 255, 0.14), transparent 68%),
+                        linear-gradient(160deg, var(--bg-ink) 0%, var(--bg-deep) 100%);
                     }
-                    .app {
-                      display: grid;
-                      grid-template-columns: minmax(320px, 1fr) minmax(340px, 460px);
-                      gap: 20px;
-                      padding: 20px;
-                      max-width: 1400px;
+
+                    .shell {
+                      max-width: 1320px;
                       margin: 0 auto;
-                    }
-                    .hero, .panel {
-                      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02)), var(--panel);
-                      border: 1px solid rgba(255,255,255,0.08);
-                      border-radius: 24px;
-                      box-shadow: 0 24px 80px rgba(0,0,0,.35);
-                    }
-                    .hero { padding: 20px; }
-                    .panel { padding: 20px; }
-                    h1 { margin: 0 0 8px; font-size: clamp(2.4rem, 4vw, 4rem); }
-                    .lede { color: var(--muted); max-width: 62ch; line-height: 1.5; }
-                    .grid {
+                      padding: 20px;
                       display: grid;
-                      grid-template-columns: repeat(2, minmax(0, 1fr));
+                      grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+                      gap: 16px;
+                    }
+
+                    .glass {
+                      border-radius: 24px;
+                      border: 1px solid var(--panel-border);
+                      background: linear-gradient(160deg, rgba(11, 29, 40, 0.82), rgba(6, 20, 28, 0.62));
+                      box-shadow: 0 28px 50px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+                      backdrop-filter: blur(12px);
+                    }
+
+                    .studio {
+                      padding: 18px;
+                      display: grid;
                       gap: 14px;
-                      margin: 18px 0;
                     }
-                    .card {
-                      background: var(--panel-2);
-                      border: 1px solid rgba(255,255,255,0.07);
-                      border-radius: 18px;
-                      padding: 14px;
+
+                    .heading {
+                      display: flex;
+                      justify-content: space-between;
+                      gap: 12px;
+                      align-items: flex-start;
+                      flex-wrap: wrap;
                     }
-                    .label { color: var(--muted); font-size: .88rem; margin-bottom: 6px; }
-                    .value { font-size: 1.35rem; font-weight: 700; }
+
+                    .brand {
+                      font-family: Audiowide, Manrope, sans-serif;
+                      letter-spacing: 1px;
+                      font-size: clamp(1.6rem, 3vw, 2.4rem);
+                      margin: 0;
+                    }
+
+                    .tagline {
+                      margin: 6px 0 0;
+                      color: var(--muted);
+                      font-size: 0.98rem;
+                    }
+
+                    .phase {
+                      font-weight: 800;
+                      padding: 8px 12px;
+                      border-radius: 999px;
+                      color: #04231f;
+                      background: linear-gradient(90deg, var(--accent), #7fffed);
+                    }
+
+                    .camWrap {
+                      position: relative;
+                      border-radius: 20px;
+                      overflow: hidden;
+                      border: 1px solid rgba(157, 255, 125, 0.25);
+                      background: #021017;
+                      aspect-ratio: 16 / 10;
+                    }
+
+                    video, canvas {
+                      position: absolute;
+                      inset: 0;
+                      width: 100%;
+                      height: 100%;
+                      object-fit: cover;
+                    }
+
+                    #overlayCanvas {
+                      pointer-events: none;
+                    }
+
+                    .traceBar {
+                      position: absolute;
+                      left: 0;
+                      right: 0;
+                      bottom: 0;
+                      padding: 10px 12px;
+                      background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.55));
+                      display: flex;
+                      justify-content: space-between;
+                      font-weight: 700;
+                    }
+
                     .controls {
                       display: grid;
                       grid-template-columns: repeat(3, minmax(0, 1fr));
-                      gap: 12px;
-                      margin: 18px 0 12px;
+                      gap: 10px;
                     }
+
+                    label {
+                      display: grid;
+                      gap: 6px;
+                      font-size: 0.85rem;
+                      color: var(--muted);
+                    }
+
                     input, button {
-                      width: 100%;
-                      border: 1px solid rgba(255,255,255,0.08);
-                      border-radius: 14px;
-                      background: #0f1722;
+                      border-radius: 12px;
+                      border: 1px solid rgba(157, 255, 125, 0.22);
+                      background: rgba(0, 19, 26, 0.9);
                       color: var(--text);
-                      padding: 12px 14px;
-                      font-size: 1rem;
+                      font-size: 0.98rem;
+                      padding: 11px 12px;
+                      font-family: Manrope, sans-serif;
                     }
-                    button { background: linear-gradient(180deg, #2f81f7, #1f6feb); font-weight: 700; cursor: pointer; }
-                    button.secondary { background: #30363d; }
-                    video, canvas {
-                      width: 100%;
-                      border-radius: 18px;
-                      background: #000;
-                      aspect-ratio: 16 / 10;
-                      object-fit: cover;
-                      border: 1px solid rgba(255,255,255,0.08);
+
+                    button {
+                      font-weight: 800;
+                      cursor: pointer;
+                      transition: transform .14s ease, box-shadow .18s ease;
                     }
-                    .stack { display: grid; gap: 12px; }
-                    .status { color: var(--muted); min-height: 1.4em; }
-                    .pill { display: inline-flex; gap: 8px; align-items: center; padding: 6px 10px; border-radius: 999px; background: rgba(88,166,255,.12); color: #b6d8ff; }
-                    
-                    /* Overlay and countdown styles */
-                    #overlay {
-                      position: fixed;
-                      top: 0;
-                      left: 0;
-                      width: 100%;
-                      height: 100%;
-                      background: rgba(0, 0, 0, 0.95);
-                      display: none;
-                      z-index: 9999;
-                      flex-direction: column;
+
+                    button:hover {
+                      transform: translateY(-1px);
+                      box-shadow: 0 10px 24px rgba(56, 255, 214, 0.2);
+                    }
+
+                    .actionRow {
+                      display: grid;
+                      grid-template-columns: repeat(4, minmax(0, 1fr));
+                      gap: 10px;
+                    }
+
+                    .primary {
+                      background: linear-gradient(120deg, #3bc8ff, #38ffd6);
+                      color: #001018;
+                      border: none;
+                    }
+
+                    .secondary {
+                      background: rgba(12, 29, 37, 0.92);
+                    }
+
+                    .stats {
+                      padding: 18px;
+                      display: grid;
+                      gap: 12px;
+                    }
+
+                    .kpiGrid {
+                      display: grid;
+                      grid-template-columns: repeat(2, minmax(0, 1fr));
+                      gap: 10px;
+                    }
+
+                    .kpi {
+                      border-radius: 16px;
+                      border: 1px solid rgba(56, 168, 255, 0.32);
+                      padding: 14px;
+                      background: linear-gradient(180deg, rgba(4, 28, 39, 0.88), rgba(5, 20, 29, 0.75));
+                    }
+
+                    .kpi .label {
+                      color: var(--muted);
+                      font-size: 0.78rem;
+                    }
+
+                    .kpi .value {
+                      margin-top: 6px;
+                      font-size: 1.6rem;
+                      font-weight: 800;
+                      letter-spacing: 0.3px;
+                    }
+
+                    .guide {
+                      margin: 0;
+                      color: var(--muted);
+                      line-height: 1.5;
+                    }
+
+                    .signal {
+                      display: inline-flex;
                       align-items: center;
-                      justify-content: center;
+                      gap: 8px;
+                      color: #062620;
+                      background: rgba(157, 255, 125, 0.9);
+                      border-radius: 999px;
+                      padding: 7px 12px;
+                      font-weight: 800;
+                      font-size: 0.86rem;
                     }
-                    #overlay.active {
-                      display: flex;
+
+                    .dot {
+                      width: 9px;
+                      height: 9px;
+                      border-radius: 999px;
+                      background: #02772c;
+                      box-shadow: 0 0 0 6px rgba(2, 119, 44, 0.15);
                     }
-                    #countdown {
-                      font-size: 20rem;
-                      font-weight: 900;
-                      color: var(--accent);
-                      text-shadow: 0 0 40px rgba(88, 166, 255, 0.8);
-                      line-height: 1;
-                      animation: pulse 0.6s ease-in-out;
+
+                    .statusLine {
+                      min-height: 1.4em;
+                      font-weight: 600;
                     }
-                    @keyframes pulse {
-                      0% { transform: scale(1.2); opacity: 0.5; }
-                      50% { transform: scale(1); opacity: 1; }
-                      100% { transform: scale(0.9); opacity: 1; }
-                    }
-                    
-                    /* Results screen */
+
+                    .danger { color: var(--danger); }
+
+                    #countdownScreen,
                     #resultScreen {
                       position: fixed;
-                      top: 0;
-                      left: 0;
-                      width: 100%;
-                      height: 100%;
-                      background: rgba(0, 0, 0, 0.98);
+                      inset: 0;
+                      z-index: 60;
                       display: none;
-                      z-index: 9998;
-                      flex-direction: column;
                       align-items: center;
                       justify-content: center;
-                      gap: 30px;
+                      flex-direction: column;
+                      background: rgba(2, 10, 15, 0.94);
+                      backdrop-filter: blur(8px);
                     }
+
+                    #countdownScreen.active,
                     #resultScreen.active {
                       display: flex;
                     }
-                    #resultCount {
-                      font-size: 15rem;
-                      font-weight: 900;
-                      color: var(--ok);
-                      text-shadow: 0 0 60px rgba(63, 185, 80, 0.8);
+
+                    #countdownValue,
+                    #resultValue {
+                      font-family: Audiowide, Manrope, sans-serif;
+                      font-size: clamp(6rem, 22vw, 14rem);
                       line-height: 1;
+                      text-shadow: 0 0 48px rgba(56, 255, 214, 0.62);
+                      animation: pop .5s ease;
                     }
+
                     #resultText {
-                      font-size: 2.5rem;
-                      color: var(--text);
-                      text-align: center;
+                      margin-top: 12px;
+                      font-size: clamp(1.1rem, 2.5vw, 1.8rem);
+                      color: var(--muted);
                     }
-                    #resultButtons {
-                      display: flex;
-                      gap: 20px;
-                      margin-top: 20px;
+
+                    @keyframes pop {
+                      0% { transform: scale(0.7); opacity: 0.4; }
+                      100% { transform: scale(1); opacity: 1; }
                     }
-                    #resultButtons button {
-                      min-width: 200px;
-                      padding: 16px 24px;
-                      font-size: 1.2rem;
+
+                    @media (max-width: 1040px) {
+                      .shell { grid-template-columns: 1fr; }
                     }
-                    
-                    #livePanel {
-                      transition: opacity 0.3s ease;
-                    }
-                    #livePanel.hidden {
-                      opacity: 0;
-                      pointer-events: none;
-                    }
-                    
-                    @media (max-width: 980px) {
-                      .app { grid-template-columns: 1fr; }
+
+                    @media (max-width: 760px) {
+                      .controls { grid-template-columns: 1fr; }
+                      .actionRow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
                     }
                   </style>
                 </head>
                 <body>
-                  <div id="overlay">
-                    <div id="countdown">3</div>
+                  <div id="countdownScreen">
+                    <div id="countdownValue">3</div>
                   </div>
-                  
+
                   <div id="resultScreen">
-                    <div id="resultCount">0</div>
-                    <div id="resultText">gestures completed</div>
-                    <div id="resultButtons">
-                      <button id="tryAgainBtn">Try Again</button>
-                      <button id="resultResetBtn" class="secondary">Back to Setup</button>
+                    <div id="resultValue">0</div>
+                    <div id="resultText">completed reps</div>
+                    <div class="actionRow" style="width:min(560px,88vw); margin-top:20px;">
+                      <button id="againBtn" class="primary">Run Again</button>
+                      <button id="closeResultBtn" class="secondary">Back To Setup</button>
                     </div>
                   </div>
 
-                  <div class="app">
-                    <section class="hero">
-                      <span class="pill">Browser webcam API + Java backend</span>
-                      <h1>Open67</h1>
-                      <p class="lede">Open your webcam in the browser, stream frames to the Java server, detect the 67 gesture, and trigger the timer once the target count is reached. This is the Codespaces-friendly workaround.</p>
+                  <main class="shell">
+                    <section class="glass studio">
+                      <header class="heading">
+                        <div>
+                          <h1 class="brand">OPEN67 MOTION LAB</h1>
+                          <p class="tagline">MediaPipe Hands in browser + Java session engine. Alternate hand elevation with palms up to count reps.</p>
+                        </div>
+                        <div id="phaseBadge" class="phase">IDLE</div>
+                      </header>
 
-                      <div class="controls">
-                        <label><div class="label">Gesture target</div><input id="targetCount" type="number" min="1" value="3"></label>
-                        <label><div class="label">Timer seconds</div><input id="timerSeconds" type="number" min="1" value="10"></label>
-                        <label><div class="label">Frame interval ms</div><input id="frameInterval" type="number" min="100" value="150"></label>
-                      </div>
-
-                      <div class="controls">
-                        <button id="startBtn">Start camera</button>
-                        <button id="goBtn">Go</button>
-                        <button id="resetBtn" class="secondary">Reset counter</button>
-                        <button id="stopBtn" class="secondary">Stop camera</button>
-                      </div>
-
-                      <div class="stack">
+                      <div class="camWrap">
                         <video id="video" playsinline autoplay muted></video>
-                        <canvas id="canvas" hidden></canvas>
-                        <div id="status" class="status">Idle.</div>
+                        <canvas id="overlayCanvas"></canvas>
+                        <canvas id="sendCanvas" hidden></canvas>
+                        <div class="traceBar">
+                          <span id="traceLeft">Hands: 0</span>
+                          <span id="traceRight">Signal: waiting</span>
+                        </div>
                       </div>
+
+                      <div class="controls">
+                        <label>Target reps
+                          <input id="targetCount" type="number" min="1" value="6" />
+                        </label>
+                        <label>Timer seconds
+                          <input id="timerSeconds" type="number" min="1" value="10" />
+                        </label>
+                        <label>Frame interval ms
+                          <input id="frameInterval" type="number" min="60" value="120" />
+                        </label>
+                      </div>
+
+                      <div class="actionRow">
+                        <button id="startCamBtn" class="primary">Start Camera</button>
+                        <button id="goBtn" class="primary">Go</button>
+                        <button id="resetBtn" class="secondary">Reset</button>
+                        <button id="stopCamBtn" class="secondary">Stop Camera</button>
+                      </div>
+
+                      <div id="status" class="statusLine">Waiting to start camera.</div>
                     </section>
 
-                    <aside class="panel" id="livePanel">
-                      <h2 style="margin-top:0">Live state</h2>
-                      <div class="grid">
-                        <div class="card"><div class="label">Detection hits</div><div class="value" id="detectionCount">0</div></div>
-                        <div class="card"><div class="label">Gesture count</div><div class="value" id="gestureCount">0</div></div>
-                        <div class="card"><div class="label">Target</div><div class="value" id="targetDisplay">3</div></div>
-                        <div class="card"><div class="label">Timer</div><div class="value" id="timerDisplay">Idle</div></div>
-                        <div class="card"><div class="label">Detection</div><div class="value" id="detectionDisplay">Waiting</div></div>
+                    <aside class="glass stats">
+                      <div class="signal"><span class="dot"></span><span id="signalText">Session ready</span></div>
+                      <div class="kpiGrid">
+                        <div class="kpi"><div class="label">Gesture Count</div><div id="gestureCount" class="value">0</div></div>
+                        <div class="kpi"><div class="label">Detection Hits</div><div id="detectionCount" class="value">0</div></div>
+                        <div class="kpi"><div class="label">Target</div><div id="targetDisplay" class="value">6</div></div>
+                        <div class="kpi"><div class="label">Timer</div><div id="timerDisplay" class="value">Idle</div></div>
+                        <div class="kpi"><div class="label">Hands Visible</div><div id="handsDisplay" class="value">0</div></div>
+                        <div class="kpi"><div class="label">Confidence</div><div id="confidenceDisplay" class="value">0.00</div></div>
                       </div>
-                      <p class="lede">Tip: in Codespaces, run the app and forward port 8080. The browser page owns the webcam permission, and Java only receives image frames.</p>
+                      <p class="guide">
+                        Gesture67 tracking rule in this build: keep both palms up and alternate which hand is higher.
+                        Each side-switch emits a rep signal to the Java backend.
+                      </p>
                     </aside>
-                  </div>
+                  </main>
 
+                  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+                  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+                  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
                   <script>
                     const video = document.getElementById('video');
-                    const canvas = document.getElementById('canvas');
-                    const status = document.getElementById('status');
-                    const detectionCount = document.getElementById('detectionCount');
+                    const overlayCanvas = document.getElementById('overlayCanvas');
+                    const sendCanvas = document.getElementById('sendCanvas');
+                    const statusEl = document.getElementById('status');
+                    const phaseBadge = document.getElementById('phaseBadge');
+                    const traceLeft = document.getElementById('traceLeft');
+                    const traceRight = document.getElementById('traceRight');
+                    const signalText = document.getElementById('signalText');
                     const gestureCount = document.getElementById('gestureCount');
+                    const detectionCount = document.getElementById('detectionCount');
                     const targetDisplay = document.getElementById('targetDisplay');
                     const timerDisplay = document.getElementById('timerDisplay');
-                    const detectionDisplay = document.getElementById('detectionDisplay');
-                    const targetCount = document.getElementById('targetCount');
-                    const timerSeconds = document.getElementById('timerSeconds');
-                    const frameInterval = document.getElementById('frameInterval');
-                    const startBtn = document.getElementById('startBtn');
+                    const handsDisplay = document.getElementById('handsDisplay');
+                    const confidenceDisplay = document.getElementById('confidenceDisplay');
+                    const targetCountInput = document.getElementById('targetCount');
+                    const timerSecondsInput = document.getElementById('timerSeconds');
+                    const frameIntervalInput = document.getElementById('frameInterval');
+                    const startCamBtn = document.getElementById('startCamBtn');
+                    const stopCamBtn = document.getElementById('stopCamBtn');
                     const goBtn = document.getElementById('goBtn');
-                    const stopBtn = document.getElementById('stopBtn');
                     const resetBtn = document.getElementById('resetBtn');
-                    const overlay = document.getElementById('overlay');
-                    const countdown = document.getElementById('countdown');
+                    const countdownScreen = document.getElementById('countdownScreen');
+                    const countdownValue = document.getElementById('countdownValue');
                     const resultScreen = document.getElementById('resultScreen');
-                    const resultCount = document.getElementById('resultCount');
-                    const resultText = document.getElementById('resultText');
-                    const tryAgainBtn = document.getElementById('tryAgainBtn');
-                    const resultResetBtn = document.getElementById('resultResetBtn');
-                    const livePanel = document.getElementById('livePanel');
+                    const resultValue = document.getElementById('resultValue');
+                    const againBtn = document.getElementById('againBtn');
+                    const closeResultBtn = document.getElementById('closeResultBtn');
 
-                    let stream = null;
-                    let timerHandle = null;
+                    const sendCtx = sendCanvas.getContext('2d', { willReadFrequently: true });
+                    const overlayCtx = overlayCanvas.getContext('2d');
+
+                    const hands = new Hands({
+                      locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+                    });
+                    hands.setOptions({
+                      maxNumHands: 2,
+                      modelComplexity: 1,
+                      minDetectionConfidence: 0.6,
+                      minTrackingConfidence: 0.55
+                    });
+
+                    let camera = null;
+                    let frameLoopHandle = null;
+                    let latestSignal = {
+                      handCount: 0,
+                      gestureDetected: false,
+                      confidence: 0,
+                      clientMessage: 'No hands',
+                      phase: 'IDLE'
+                    };
+                    let running = false;
                     let sessionActive = false;
-                    let sessionComplete = false;
+                    let lastPose = 'NONE';
+                    let expectedPose = 'RIGHT_HIGH';
+                    let triggerUntil = 0;
 
-                    function setStatus(message) {
-                      status.textContent = message;
+                    function setStatus(message, isError = false) {
+                      statusEl.textContent = message;
+                      statusEl.classList.toggle('danger', !!isError);
                     }
 
-                    function showOverlay() {
-                      overlay.classList.add('active');
-                      livePanel.classList.add('hidden');
+                    function setPhase(text) {
+                      phaseBadge.textContent = text;
                     }
 
-                    function hideOverlay() {
-                      overlay.classList.remove('active');
+                    function getHandRole(label, index) {
+                      if (label === 'Right' || label === 'Left') return label;
+                      return index === 0 ? 'Right' : 'Left';
                     }
 
-                    function showResults(count) {
-                      resultScreen.classList.add('active');
-                      resultCount.textContent = count;
-                      sessionActive = false;
-                      sessionComplete = true;
+                    function handSnapshot(landmarks) {
+                      const wrist = landmarks[0];
+                      const middleMcp = landmarks[9];
+                      const indexTip = landmarks[8];
+                      const middleTip = landmarks[12];
+                      const ringTip = landmarks[16];
+                      const pinkyTip = landmarks[20];
+                      const avgTipsY = (indexTip.y + middleTip.y + ringTip.y + pinkyTip.y) / 4;
+                      const palmUp = avgTipsY < wrist.y - 0.02;
+                      return {
+                        centerY: middleMcp.y,
+                        palmUp
+                      };
                     }
 
-                    function hideResults() {
-                      resultScreen.classList.remove('active');
-                      livePanel.classList.remove('hidden');
-                      sessionComplete = false;
-                    }
+                    function updateLocalGestureSignal(results) {
+                      const mapped = { Right: null, Left: null };
+                      let confidenceSum = 0;
 
-                    function updateUi(state) {
-                      detectionCount.textContent = state.detectionCount ?? 0;
-                      gestureCount.textContent = state.gestureCount ?? 0;
-                      targetDisplay.textContent = state.targetCount ?? targetCount.value;
-                      detectionDisplay.textContent = state.detected ? `${state.detectionCount ?? 0} hits` : (state.message || 'Waiting');
-                      
-                      if (state.timerActive) {
-                        timerDisplay.textContent = `${Math.ceil((state.timerRemainingMillis || 0) / 1000)}s`;
+                      (results.multiHandLandmarks || []).forEach((landmarks, idx) => {
+                        const handedness = results.multiHandedness?.[idx]?.classification?.[0];
+                        const role = getHandRole(handedness?.label, idx);
+                        mapped[role] = handSnapshot(landmarks);
+                        confidenceSum += handedness?.score || 0.0;
+                      });
+
+                      const handCount = (mapped.Right ? 1 : 0) + (mapped.Left ? 1 : 0);
+                      const confidence = handCount > 0 ? confidenceSum / handCount : 0;
+
+                      let clientMessage = 'Need both hands';
+                      let phase = 'TRACKING';
+
+                      if (handCount < 2) {
+                        latestSignal = {
+                          handCount,
+                          gestureDetected: Date.now() < triggerUntil,
+                          confidence,
+                          clientMessage,
+                          phase: handCount === 0 ? 'NO_HANDS' : 'ONE_HAND'
+                        };
+                        return;
+                      }
+
+                      const bothUp = mapped.Right.palmUp && mapped.Left.palmUp;
+                      const diff = mapped.Right.centerY - mapped.Left.centerY;
+                      const threshold = 0.055;
+
+                      let pose = 'LEVEL';
+                      if (diff < -threshold) pose = 'RIGHT_HIGH';
+                      if (diff > threshold) pose = 'LEFT_HIGH';
+
+                      if (!bothUp) {
+                        clientMessage = 'Rotate palms upward';
+                        phase = 'PALM_CHECK';
+                      } else if (pose === 'LEVEL') {
+                        clientMessage = 'Move one hand higher';
                       } else {
-                        timerDisplay.textContent = state.timerComplete ? 'Done' : 'Idle';
+                        clientMessage = pose === 'RIGHT_HIGH' ? 'Right hand high' : 'Left hand high';
+
+                        if (pose !== lastPose && pose === expectedPose) {
+                          triggerUntil = Date.now() + 260;
+                          expectedPose = expectedPose === 'RIGHT_HIGH' ? 'LEFT_HIGH' : 'RIGHT_HIGH';
+                        }
                       }
 
-                      if (state.state === 'COMPLETE' && sessionActive) {
-                        showResults(state.gestureCount ?? 0);
-                      }
+                      lastPose = pose;
+
+                      latestSignal = {
+                        handCount,
+                        gestureDetected: Date.now() < triggerUntil,
+                        confidence,
+                        clientMessage,
+                        phase: bothUp ? phase : 'PALM_CHECK'
+                      };
                     }
+
+                    hands.onResults((results) => {
+                      const width = video.videoWidth || 960;
+                      const height = video.videoHeight || 540;
+                      overlayCanvas.width = width;
+                      overlayCanvas.height = height;
+
+                      overlayCtx.save();
+                      overlayCtx.clearRect(0, 0, width, height);
+
+                      const landmarksList = results.multiHandLandmarks || [];
+                      landmarksList.forEach((landmarks) => {
+                        drawConnectors(overlayCtx, landmarks, HAND_CONNECTIONS, { color: '#32f8ff', lineWidth: 3 });
+                        drawLandmarks(overlayCtx, landmarks, { color: '#9dff7d', lineWidth: 1, radius: 4 });
+                      });
+
+                      overlayCtx.restore();
+
+                      updateLocalGestureSignal(results);
+
+                      traceLeft.textContent = `Hands: ${latestSignal.handCount}`;
+                      traceRight.textContent = `Signal: ${latestSignal.clientMessage}`;
+                      handsDisplay.textContent = latestSignal.handCount;
+                      confidenceDisplay.textContent = Number(latestSignal.confidence || 0).toFixed(2);
+                    });
 
                     async function getState() {
                       const response = await fetch('/api/state');
                       return await response.json();
                     }
 
-                    async function resetCounter() {
-                      const response = await fetch('/api/reset', { method: 'POST' });
-                      updateUi(await response.json());
+                    function updateUi(state) {
+                      detectionCount.textContent = state.detectionCount ?? 0;
+                      gestureCount.textContent = state.gestureCount ?? 0;
+                      targetDisplay.textContent = state.targetCount ?? targetCountInput.value;
+
+                      if (state.timerActive) {
+                        timerDisplay.textContent = `${Math.ceil((state.timerRemainingMillis || 0) / 1000)}s`;
+                      } else {
+                        timerDisplay.textContent = state.timerComplete ? 'Done' : 'Idle';
+                      }
+
+                      setPhase(state.state || 'IDLE');
+                      signalText.textContent = state.lastMessage || 'Ready';
+
+                      if (state.state === 'COMPLETE' && sessionActive) {
+                        resultValue.textContent = String(state.gestureCount || 0);
+                        resultScreen.classList.add('active');
+                        sessionActive = false;
+                      }
                     }
 
-                    async function sendFrame() {
-                      if (!stream) {
-                        return;
-                      }
-                      canvas.width = video.videoWidth || 640;
-                      canvas.height = video.videoHeight || 400;
-                      const context = canvas.getContext('2d', { willReadFrequently: true });
-                      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                      const imageDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+                    async function sendFrameSignal() {
+                      if (!running || !video.srcObject) return;
 
-                      const body = new URLSearchParams({
+                      sendCanvas.width = video.videoWidth || 640;
+                      sendCanvas.height = video.videoHeight || 400;
+                      sendCtx.drawImage(video, 0, 0, sendCanvas.width, sendCanvas.height);
+                      const imageDataUrl = sendCanvas.toDataURL('image/jpeg', 0.65);
+
+                      const payload = new URLSearchParams({
+                        hasClientSignal: 'true',
+                        gestureDetected: String(!!latestSignal.gestureDetected),
+                        handCount: String(latestSignal.handCount || 0),
+                        confidence: String(latestSignal.confidence || 0),
+                        clientMessage: latestSignal.clientMessage || 'Tracking',
                         imageDataUrl,
-                        targetCount: targetCount.value,
-                        timerSeconds: timerSeconds.value
+                        targetCount: targetCountInput.value,
+                        timerSeconds: timerSecondsInput.value
                       });
 
                       const response = await fetch('/api/frame', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-                        body
+                        body: payload
                       });
-                      const state = await response.json();
-                      updateUi(state);
+
+                      updateUi(await response.json());
                     }
 
                     async function startCamera() {
-                      if (stream) {
-                        return;
-                      }
-                      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+                      if (running) return;
+
+                      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
                       video.srcObject = stream;
                       await video.play();
-                      setStatus('Camera started. Click Go to begin.');
-                      await resetCounter();
+
+                      camera = new Camera(video, {
+                        onFrame: async () => {
+                          await hands.send({ image: video });
+                        },
+                        width: 960,
+                        height: 540
+                      });
+
+                      await camera.start();
+                      running = true;
+                      setStatus('Camera active. Press Go to start countdown.');
+
                       const loop = async () => {
-                        if (!stream) {
-                          return;
-                        }
+                        if (!running) return;
                         try {
-                          await sendFrame();
+                          await sendFrameSignal();
                         } catch (error) {
-                          setStatus(`Frame upload failed: ${error.message}`);
+                          setStatus('Frame sync failed: ' + (error.message || error), true);
                         }
-                        timerHandle = window.setTimeout(loop, Number(frameInterval.value) || 250);
+                        frameLoopHandle = window.setTimeout(loop, Number(frameIntervalInput.value) || 140);
                       };
                       loop();
+                    }
+
+                    async function resetSession() {
+                      const response = await fetch('/api/reset', { method: 'POST' });
+                      updateUi(await response.json());
                     }
 
                     async function startSession() {
                       try {
                         sessionActive = true;
-                        showOverlay();
+                        resultScreen.classList.remove('active');
+                        countdownScreen.classList.add('active');
 
-                        const body = new URLSearchParams({ targetCount: targetCount.value, timerSeconds: timerSeconds.value });
-                        await fetch('/api/start', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body });
+                        const body = new URLSearchParams({ targetCount: targetCountInput.value, timerSeconds: timerSecondsInput.value });
+                        await fetch('/api/start', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+                          body
+                        });
 
-                        // Big centered countdown: 3..2..1
-                        countdown.textContent = '3';
-                        await new Promise(r => setTimeout(r, 1000));
-                        countdown.textContent = '2';
-                        await new Promise(r => setTimeout(r, 1000));
-                        countdown.textContent = '1';
-                        await new Promise(r => setTimeout(r, 1000));
-                        countdown.textContent = 'GO!';
-                        await new Promise(r => setTimeout(r, 500));
-                        hideOverlay();
-                        setStatus('Go! Detect the 67 gesture...');
-                      } catch (err) {
-                        setStatus('Start failed: ' + (err.message || err));
+                        const ticks = ['3', '2', '1', 'GO'];
+                        for (const value of ticks) {
+                          countdownValue.textContent = value;
+                          await new Promise(resolve => setTimeout(resolve, value === 'GO' ? 550 : 1000));
+                        }
+
+                        countdownScreen.classList.remove('active');
+                        setStatus('Session running. Alternate hand height with palms up.');
+                      } catch (error) {
                         sessionActive = false;
+                        countdownScreen.classList.remove('active');
+                        setStatus('Could not start session: ' + (error.message || error), true);
                       }
                     }
 
-                    function stopCamera() {
-                      if (timerHandle) {
-                        clearTimeout(timerHandle);
-                        timerHandle = null;
+                    async function stopCamera() {
+                      running = false;
+                      sessionActive = false;
+                      if (frameLoopHandle) {
+                        clearTimeout(frameLoopHandle);
+                        frameLoopHandle = null;
                       }
+                      if (camera) {
+                        await camera.stop();
+                        camera = null;
+                      }
+                      const stream = video.srcObject;
                       if (stream) {
                         stream.getTracks().forEach(track => track.stop());
-                        stream = null;
                       }
                       video.srcObject = null;
+                      overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
                       setStatus('Camera stopped.');
                     }
 
-                    startBtn.addEventListener('click', async () => {
+                    startCamBtn.addEventListener('click', async () => {
                       try {
                         await startCamera();
+                        await resetSession();
                       } catch (error) {
-                        setStatus(`Could not start camera: ${error.message}`);
+                        setStatus('Unable to start camera: ' + (error.message || error), true);
                       }
                     });
+
                     goBtn.addEventListener('click', async () => {
-                      if (!sessionComplete && !sessionActive) {
+                      if (!running) {
+                        setStatus('Start camera first.', true);
+                        return;
+                      }
+                      if (!sessionActive) {
                         await startSession();
                       }
                     });
-                    stopBtn.addEventListener('click', stopCamera);
-                    resetBtn.addEventListener('click', resetCounter);
-                    tryAgainBtn.addEventListener('click', async () => {
-                      hideResults();
-                      await resetCounter();
+
+                    stopCamBtn.addEventListener('click', () => stopCamera());
+                    resetBtn.addEventListener('click', () => resetSession());
+                    againBtn.addEventListener('click', async () => {
+                      resultScreen.classList.remove('active');
+                      await resetSession();
                       await startSession();
                     });
-                    resultResetBtn.addEventListener('click', async () => {
-                      hideResults();
-                      await resetCounter();
-                      setStatus('Reset. Click Go to start again.');
+                    closeResultBtn.addEventListener('click', async () => {
+                      resultScreen.classList.remove('active');
+                      await resetSession();
+                      setStatus('Ready for a new run.');
                     });
-                    targetCount.addEventListener('change', () => targetDisplay.textContent = targetCount.value);
 
-                    getState().then(updateUi).catch(() => setStatus('Java server is not ready yet.'));
+                    targetCountInput.addEventListener('change', () => {
+                      targetDisplay.textContent = targetCountInput.value;
+                    });
+
+                    getState().then(updateUi).catch(() => {
+                      setStatus('Server not ready yet.', true);
+                    });
                   </script>
                 </body>
                 </html>

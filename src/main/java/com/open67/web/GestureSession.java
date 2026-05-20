@@ -62,8 +62,22 @@ final class GestureSession {
 
     synchronized GestureDetectionResultView processFrame(Mat frame, Gesture67Detector detector) {
         GestureDetectionResult detectionResult = detector.detect(frame);
+        return processDetection(
+                detectionResult.detected(),
+                detectionResult.message(),
+                detectionResult.defectCount(),
+                detectionResult.solidity(),
+                detectionResult.contourArea());
+    }
+
+    synchronized GestureDetectionResultView processDetection(boolean detected, String message, int strength, double confidence,
+            double area) {
+        return updateSession(detected, message, strength, confidence, area);
+    }
+
+    private GestureDetectionResultView updateSession(boolean detected, String message, int strength, double confidence,
+            double area) {
         long now = System.currentTimeMillis();
-        String stateName = state.name();
 
         // COUNTDOWN: wait until countdown expires, show remaining time
         if (state == State.COUNTDOWN) {
@@ -71,31 +85,12 @@ final class GestureSession {
                 state = State.ACTIVE;
                 lastMessage = "Go";
             } else {
-                long leftMs = countdownEndAtMs - now;
                 lastMessage = "Countdown";
-                return new GestureDetectionResultView(
-                        detectionResult.detected(),
-                        detectionResult.bounds(),
-                        detectionResult.defectCount(),
-                        (double) (detectionResult instanceof com.open67.vision.GestureDetectionResult ? ((com.open67.vision.GestureDetectionResult) detectionResult).solidity() : 0.0),
-                        (double) (detectionResult instanceof com.open67.vision.GestureDetectionResult ? ((com.open67.vision.GestureDetectionResult) detectionResult).contourArea() : 0.0),
-                        detectionResult.message(),
-                        detectionStreak,
-                        gestureCount,
-                        targetCount,
-                        timerSeconds,
-                        timerEndAtMs > 0L,
-                        Math.max(0L, timerRemainingMillis(now)),
-                        timerEndAtMs > 0L && timerRemainingMillis(now) <= 0L,
-                        state.name(),
-                        lastMessage
-                );
+                return buildResult(detected, null, strength, confidence, area, message, now);
             }
         }
 
-        boolean gestureDetected = detectionResult.detected();
-
-        if (gestureDetected) {
+        if (detected) {
             detectionStreak++;
         } else {
             detectionStreak = 0;
@@ -121,38 +116,25 @@ final class GestureSession {
             }
         }
 
-        lastMessage = detectionResult.message();
-
-        long remainingMs = timerRemainingMillis(now);
-        return new GestureDetectionResultView(
-                detectionResult.detected(),
-                detectionResult.bounds(),
-                detectionResult.defectCount(),
-                (double) (detectionResult instanceof com.open67.vision.GestureDetectionResult ? ((com.open67.vision.GestureDetectionResult) detectionResult).solidity() : 0.0),
-                (double) (detectionResult instanceof com.open67.vision.GestureDetectionResult ? ((com.open67.vision.GestureDetectionResult) detectionResult).contourArea() : 0.0),
-                detectionResult.message(),
-                detectionStreak,
-                gestureCount,
-                targetCount,
-                timerSeconds,
-                timerEndAtMs > 0L,
-                Math.max(0L, remainingMs),
-                timerEndAtMs > 0L && remainingMs <= 0L,
-                state.name(),
-                lastMessage
-        );
+        lastMessage = message;
+        return buildResult(detected, null, strength, confidence, area, message, now);
     }
 
     synchronized GestureDetectionResultView emptyResult(String message) {
         lastMessage = message;
         long now = System.currentTimeMillis();
+        return buildResult(false, null, 0, 0.0, 0.0, message, now);
+    }
+
+    private GestureDetectionResultView buildResult(boolean detected, Rect bounds, int strength, double confidence,
+            double area, String message, long now) {
         long remainingMs = timerRemainingMillis(now);
         return new GestureDetectionResultView(
-                false,
-                null,
-                0,
-                0.0,
-                0.0,
+                detected,
+                bounds,
+                strength,
+                confidence,
+                area,
                 message,
                 detectionStreak,
                 gestureCount,
@@ -161,9 +143,8 @@ final class GestureSession {
                 timerEndAtMs > 0L,
                 Math.max(0L, remainingMs),
                 timerEndAtMs > 0L && remainingMs <= 0L,
-            state.name(),
-            lastMessage
-        );
+                state.name(),
+                lastMessage);
     }
 
     synchronized String toJson() {

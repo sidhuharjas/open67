@@ -123,14 +123,26 @@ public final class Open67WebServer {
             String requestBody = new String(readAll(exchange.getRequestBody()), StandardCharsets.UTF_8);
             Map<String, String> params = parseFormEncoded(requestBody);
             String imageDataUrl = params.getOrDefault("imageDataUrl", "");
+            boolean hasClientSignal = "true".equalsIgnoreCase(params.getOrDefault("hasClientSignal", "false"));
             int targetCount = parsePositiveInt(params.get("targetCount"), session.targetCount());
             int timerSeconds = parsePositiveInt(params.get("timerSeconds"), session.timerSeconds());
 
             synchronized (session) {
                 session.setConfiguration(targetCount, timerSeconds);
-                GestureDetectionResultView resultView = processFrame(imageDataUrl);
+                GestureDetectionResultView resultView = hasClientSignal
+                        ? processClientSignal(params)
+                        : processFrame(imageDataUrl);
                 sendJson(exchange, 200, session.toJson(resultView));
             }
+        }
+
+        private GestureDetectionResultView processClientSignal(Map<String, String> params) {
+            boolean detected = "true".equalsIgnoreCase(params.getOrDefault("gestureDetected", "false"));
+            int handCount = parseNonNegativeInt(params.get("handCount"), 0);
+            double confidence = parseDouble(params.get("confidence"), 0.0);
+            String message = params.getOrDefault("clientMessage", "Waiting for hands");
+
+            return session.processDetection(detected, message, handCount, confidence, 0.0);
         }
 
         private GestureDetectionResultView processFrame(String imageDataUrl) {
@@ -197,6 +209,23 @@ public final class Open67WebServer {
         try {
             int parsed = Integer.parseInt(value);
             return Math.max(1, parsed);
+        } catch (NumberFormatException numberFormatException) {
+            return fallback;
+        }
+    }
+
+    private int parseNonNegativeInt(String value, int fallback) {
+        try {
+            int parsed = Integer.parseInt(value);
+            return Math.max(0, parsed);
+        } catch (NumberFormatException numberFormatException) {
+            return fallback;
+        }
+    }
+
+    private double parseDouble(String value, double fallback) {
+        try {
+            return Double.parseDouble(value);
         } catch (NumberFormatException numberFormatException) {
             return fallback;
         }
