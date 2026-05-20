@@ -960,8 +960,21 @@ final class WebAssets {
                         overlay.hidden = false;
                         let remaining = 3;
                         countdownEl.textContent = String(remaining);
+                        // disable controls while calibrating
+                        startCamBtn.disabled = true;
+                        goBtn.disabled = true;
+                        stopCamBtn.disabled = true;
+
                         // fire server calibration in background
                         const calibratePromise = fetch("/api/calibrate", { method: "POST" }).catch(() => {});
+
+                        const cleanup = () => {
+                          try { overlay.remove(); } catch (e) { overlay.hidden = true; }
+                          startCamBtn.disabled = false;
+                          goBtn.disabled = false;
+                          stopCamBtn.disabled = false;
+                        };
+
                         const tick = () => {
                           remaining -= 1;
                           if (remaining >= 1) {
@@ -970,11 +983,17 @@ final class WebAssets {
                           } else {
                             countdownEl.textContent = 'Done';
                             // hide after short delay and remove overlay from DOM
-                              setTimeout(() => { try { overlay.remove(); } catch(e) { overlay.hidden = true; } }, 700);
+                            setTimeout(cleanup, 700);
                           }
                         };
+                        // force cleanup if server doesn't respond for any reason
+                        const forceTimeout = setTimeout(() => { try { cleanup(); } catch(e){} }, 7000);
+
                         setTimeout(tick, 1000);
                         await calibratePromise;
+                        clearTimeout(forceTimeout);
+                        // ensure cleanup after server confirms (if not already cleaned)
+                        cleanup();
                     });
         
                     againBtn.addEventListener('click', async () => {
